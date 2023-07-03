@@ -1,0 +1,4 @@
+(executable
+ (public_name elvm_opt)
+ (name main)
+ (libraries elvm_opt))
