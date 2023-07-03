@@ -1,5 +1,0 @@
-# dune init project elvm_opt
-# OCAMLPARAM: unset
-# Shared cache: disabled
-# Workspace root: /home/nathan/git/elvm-opt/elvm_opt
-# Auto-detected concurrency: 16
