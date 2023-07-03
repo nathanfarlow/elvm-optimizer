@@ -1,2 +1,6 @@
-(test
- (name elvm_opt))
+(library
+ (name elvm_opt_test)
+ (libraries elvm_opt core)
+ (preprocess
+  (pps ppx_jane))
+ (inline_tests))

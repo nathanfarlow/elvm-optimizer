@@ -5,22 +5,17 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github nathanfarlow/elvm-opt))
 
-(authors "Author Name")
+(authors "Nathan Farlow")
 
-(maintainers "Maintainer Name")
+(maintainers "Nathan Farlow")
 
-(license LICENSE)
+(license MIT)
 
-(documentation https://url/to/documentation)
+(documentation https://github.com/nathanfarlow/elvm-opt)
 
 (package
  (name elvm_opt)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
- (tags
-  (topics "to describe" your project)))
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
+ (synopsis "Optimize elvm IR")
+ (depends ocaml dune core))

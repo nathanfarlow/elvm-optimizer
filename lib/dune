@@ -1,2 +1,5 @@
 (library
- (name elvm_opt))
+ (name elvm_opt)
+ (libraries core str)
+ (preprocess
+  (pps ppx_jane)))
