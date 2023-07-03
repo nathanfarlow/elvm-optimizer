@@ -1,5 +1,5 @@
 open Core
-open Elvm_instruction
+open Instruction
 
 type segment = Data | Text [@@deriving sexp, equal]
 type address = { segment : segment; offset : int } [@@deriving sexp, equal]
@@ -7,7 +7,7 @@ type data_entry = Const of int | Address of address [@@deriving sexp, equal]
 
 type t = {
   data : data_entry list;
-  instructions : Elvm_instruction.t list;
+  instructions : Instruction.t list;
   labels : (string, address) Hashtbl.t;
 }
 
@@ -23,7 +23,7 @@ end
 type statement =
   | Label of string
   | Directive of Directive.t
-  | Instruction of Elvm_instruction.t
+  | Instruction of Instruction.t
 
 module Section = struct
   type t = Text of int | Data of int
@@ -68,6 +68,7 @@ let parse_directive labels line =
   | _ -> None
 
 let parse_register s =
+  let open Register in
   match s with
   | "A" -> Some A
   | "B" -> Some B

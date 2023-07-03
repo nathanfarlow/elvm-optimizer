@@ -3,3 +3,5 @@
  (libraries core str)
  (preprocess
   (pps ppx_jane)))
+
+(include_subdirs unqualified)

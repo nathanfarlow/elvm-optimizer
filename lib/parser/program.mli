@@ -6,7 +6,7 @@ type data_entry = Const of int | Address of address [@@deriving sexp, equal]
 
 type t = {
   data : data_entry list;
-  instructions : Elvm_instruction.t list;
+  instructions : Instruction.t list;
   labels : (string, address) Hashtbl.t;
 }
 

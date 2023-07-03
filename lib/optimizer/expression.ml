@@ -7,7 +7,7 @@ and condition = { comparison : comparison; a : t; b : t }
 
 and t =
   | Const of int
-  | Register of Elvm_instruction.register
+  | Register of Register.t
   | Memory of t
   | Add of t list
   | Sub of t * t
@@ -15,17 +15,10 @@ and t =
   | Set of condition
 [@@deriving sexp]
 
-let const_compare comparison a b =
-  match comparison with
-  | Eq -> a = b
-  | Ne -> a <> b
-  | Lt -> a < b
-  | Le -> a <= b
-
 let rec equal a b =
   match (a, b) with
   | Const x, Const y -> x = y
-  | Register x, Register y -> Elvm_instruction.equal_register x y
+  | Register x, Register y -> Register.equal x y
   | Memory x, Memory y -> equal x y
   | Add xs, Add ys ->
       if List.length xs <> List.length ys then false
@@ -92,6 +85,13 @@ and simplify_set comparison a b =
   let b, b_changed = simplify' b in
   match (a, b) with
   | Const a, Const b ->
+      let const_compare comparison a b =
+        match comparison with
+        | Eq -> a = b
+        | Ne -> a <> b
+        | Lt -> a < b
+        | Le -> a <= b
+      in
       (Const (if const_compare comparison a b then 1 else 0), true)
   | _ -> (
       let equal = equal a b in

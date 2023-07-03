@@ -5,7 +5,7 @@ and condition = { comparison : comparison; a : t; b : t }
 
 and t =
   | Const of int
-  | Register of Elvm_instruction.register
+  | Register of Register.t
   | Memory of t
   | Add of t list
   | Sub of t * t
