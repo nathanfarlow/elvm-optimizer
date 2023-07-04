@@ -1,6 +1,12 @@
-open Core
+open! Core
 
-type t
+type t = {
+  label : string;
+  statements : Statement.t list;
+  branch : branch option;
+}
 
-val get_statements : t -> Statement.t Deque.t
-val get_id : t -> int
+and branch = { primary : t; secondary : t option }
+
+val get_statements : t -> Statement.t list
+val find_living : t -> Statement.variable list

@@ -7,6 +7,7 @@ and condition = { comparison : comparison; a : t; b : t }
 
 and t =
   | Const of int
+  | Label of string
   | Register of Register.t
   | Memory of t
   | Add of t list
@@ -45,6 +46,7 @@ let rec equal a b =
 
 let rec simplify' = function
   | Const _ as x -> (x, false)
+  | Label _ as x -> (x, false)
   | Register _ as x -> (x, false)
   | Memory addr ->
       let x, did_change = simplify' addr in

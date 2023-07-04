@@ -1,13 +1,18 @@
-open Core
+open! Core
 
-type destination = Memory of Expression.t | Register of Register.t
+type variable = Memory of Expression.t | Register of Register.t
 [@@deriving sexp, equal]
 
-type assignment = { dest : destination; src : Expression.t }
+type assignment = { dst : variable; src : Expression.t }
 [@@deriving sexp, equal]
 
-type jump = { target : Expression.t; condition : Expression.t option }
+type jump = { target : Expression.t; condition : Expression.condition option }
 [@@deriving sexp, equal]
 
-type t = Assign of assignment | Putc of Expression.t | Jmp of jump
+type t =
+  | Assign of assignment
+  | Putc of Expression.t
+  | Jump of jump
+  | Exit
+  | Dump
 [@@deriving sexp, equal]

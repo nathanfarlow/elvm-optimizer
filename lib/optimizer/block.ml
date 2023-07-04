@@ -1,9 +1,12 @@
-open Core
+open! Core
 
 type t = {
-  id : int;
-  statements : Statement.t Deque.t;
+  label : string;
+  statements : Statement.t list;
+  branch : branch option;
 }
 
+and branch = { primary : t; secondary : t option }
+
 let get_statements t = t.statements
-let get_id t = t.id
+let find_living _ = failwith "find_living not implemented"

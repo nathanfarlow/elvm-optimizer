@@ -5,6 +5,7 @@ and condition = { comparison : comparison; a : t; b : t }
 
 and t =
   | Const of int
+  | Label of string
   | Register of Register.t
   | Memory of t
   | Add of t list
