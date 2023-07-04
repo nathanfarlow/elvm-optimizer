@@ -53,20 +53,15 @@ let lift_insn = function
 
 let update_labels program ~f =
   let labels = Hashtbl.create (module String) in
-  let update label =
-    let old_address = Hashtbl.find_exn program.labels label in
-    let new_label, new_address = f label old_address in
-    let found =
-      Hashtbl.find_or_add labels new_label ~default:(fun () -> new_address)
-    in
-    assert (Program.equal_address found new_address);
-    new_label
-  in
+  Hashtbl.iteri program.labels ~f:(fun ~key ~data ->
+      let new_label = f key in
+      Hashtbl.set labels ~key:new_label ~data);
+
   let instructions =
     let update_imm_or_reg = function
       | Int x -> Int x
       | Register x -> Register x
-      | Label l -> Label (update l)
+      | Label l -> Label (f l)
     in
     let update_cond { comparison; args = { dst; src } } =
       { comparison; args = { dst; src = update_imm_or_reg src } }
@@ -90,7 +85,7 @@ let update_labels program ~f =
   let data =
     List.map program.data ~f:(function
       | Const x -> Program.Const x
-      | Label l -> Label (update l))
+      | Label l -> Label (f l))
   in
   { instructions; data; labels }
 
@@ -98,8 +93,36 @@ let sorted_alist map compare =
   let alist = Hashtbl.to_alist map in
   List.sort alist ~compare:(fun (a, _) (b, _) -> compare a b)
 
+(* Replace jmp int with jmp label. Also, every instruction now
+   has at least one corresponding label. *)
+let remove_jmp_int program =
+  let fresh =
+    let i = ref 0 in
+    let rec loop () =
+      let label = sprintf "__L%d" !i in
+      incr i;
+      if Hashtbl.mem program.labels label then loop () else label
+    in
+    loop
+  in
+  let int_labels =
+    Array.init (List.length program.instructions) ~f:(fun _ -> fresh ())
+  in
+  let instructions =
+    List.map program.instructions ~f:(function
+      | Jump { target = Int n; condition } ->
+          let target = Instruction.Label int_labels.(n) in
+          Instruction.Jump { target; condition }
+      | insn -> insn)
+  in
+  let labels = Hashtbl.copy program.labels in
+  Array.iteri int_labels ~f:(fun i label ->
+      Hashtbl.add_exn labels ~key:label ~data:{ segment = Text; offset = i });
+  { program with instructions; labels }
+
 (* text offset -> label map *)
 let rec make_offset_label_mapping program =
+  (* fprintf stdout "num labels = %d\n" (Hashtbl.length program.labels); *)
   let exception Program_changed of Program.t in
   let offset_to_label = Hashtbl.create (module Int) in
   try
@@ -126,23 +149,22 @@ let rec make_offset_label_mapping program =
                      else (prev_label, cur_label)
                    in
                    let program_with_label_removed =
-                     update_labels program ~f:(fun label addr ->
-                         if String.equal label replace then (keep, addr)
-                         else (label, addr))
+                     update_labels program ~f:(fun label ->
+                         if String.equal label replace then keep else label)
                    in
                    raise (Program_changed program_with_label_removed))
            | Data -> ());
     (program, offset_to_label)
   with Program_changed program -> make_offset_label_mapping program
 
-let make_blocks statement_groups out_edges =
-  let blocks = Hashtbl.create (module String) in
+let make_blocks statements out_edges =
+  let block_cache = Hashtbl.create (module String) in
   let rec make_block label =
-    let statements = Hashtbl.find_exn statement_groups label in
-    let edges = Hashtbl.find out_edges label in
-    match Hashtbl.find blocks label with
+    match Hashtbl.find block_cache label with
     | Some block -> block
     | None ->
+        let statement = Hashtbl.find_exn statements label in
+        let edges = Hashtbl.find out_edges label in
         let branch =
           match edges with
           | None -> None
@@ -154,80 +176,44 @@ let make_blocks statement_groups out_edges =
               Some { primary; secondary = Some secondary }
           | _ -> assert false
         in
-        let block = { label; statements; branch } in
-        Hashtbl.add_exn blocks ~key:label ~data:block;
+        let block = { label; statements = [ statement ]; branch } in
+        Hashtbl.add_exn block_cache ~key:label ~data:block;
         block
   in
-  let parents =
-    let in_edges = Hashtbl.create (module String) in
-    Hashtbl.iteri out_edges ~f:(fun ~key:label ~data:edges ->
-        List.iter edges ~f:(fun target ->
-            Hashtbl.add_multi in_edges ~key:target ~data:label));
-    let is_parent label =
-      match Hashtbl.find in_edges label with
-      | None -> true
-      (* must be a while true loop *)
-      | Some [ l ] when String.equal l label -> true
-      | _ -> false
-    in
-    Hashtbl.keys out_edges |> List.filter ~f:is_parent
-  in
-  List.map parents ~f:make_block
-
-let fresh_label_gen reserved =
-  let i = ref 0 in
-  let rec loop () =
-    let label = sprintf "__L%d" !i in
-    if reserved label then loop () else label
-  in
-  loop
+  Hashtbl.mapi statements ~f:(fun ~key:label ~data:_ -> make_block label)
 
 let of_program program =
-  let program, offset_to_label = make_offset_label_mapping program in
+  let program = remove_jmp_int program in
+  let program, pc_to_label = make_offset_label_mapping program in
 
-  let all_statements = Hashtbl.create (module String) in
-  let all_out_edges = Hashtbl.create (module String) in
+  let statements = Hashtbl.create (module String) in
+  let out_edges = Hashtbl.create (module String) in
 
   let prev_label = ref None in
-  let current_statements = Deque.create () in
 
-  let commit () =
-    (match !prev_label with
-    | Some prev_label ->
-        let data = Deque.to_list current_statements in
-        Hashtbl.add_exn all_statements ~key:prev_label ~data
-    | None -> ());
-    Deque.clear current_statements;
-    prev_label := None
-  in
-  let fresh = fresh_label_gen (Hashtbl.mem program.labels) in
+  List.iteri program.instructions ~f:(fun pc insn ->
+      let label = Hashtbl.find_exn pc_to_label pc in
 
-  List.iteri program.instructions ~f:(fun i insn ->
-      let cur_label =
-        match (!prev_label, Hashtbl.find offset_to_label i) with
-        | _, Some new_label ->
-            commit ();
-            new_label
-        | None, _ -> fresh ()
-        | Some prev_label, None -> prev_label
-      in
+      (* fallthrough *)
+      (match !prev_label with
+      | Some prev_label ->
+          Hashtbl.add_multi out_edges ~key:prev_label ~data:label
+      | None -> ());
 
-      prev_label := Some cur_label;
-
-      Deque.enqueue_back current_statements (lift_insn insn);
-      match insn with
-      | Jump { target; _ } ->
-          (match target with
-          | Label l -> Hashtbl.add_multi all_out_edges ~key:cur_label ~data:l
+      Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
+      (match insn with
+      | Jump { target; _ } -> (
+          match target with
+          | Label l -> Hashtbl.add_multi out_edges ~key:label ~data:l
           | Register _ -> ()
-          | Int _ -> assert false);
-          commit ()
-      | Exit -> commit ()
+          | Int _ -> assert false)
       | _ -> ());
+      prev_label := Some label);
 
-  commit ();
-
-  make_blocks all_statements all_out_edges
+  if not @@ List.is_empty program.instructions then
+    let blocks = make_blocks statements out_edges in
+    [ Hashtbl.find_exn blocks (Hashtbl.find_exn pc_to_label 0) ]
+  else []
 
 let optimize _ = failwith "unimplemented"
 let to_program _ = failwith "unimplemented"
