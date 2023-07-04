@@ -3,7 +3,7 @@ open Instruction
 
 type segment = Data | Text [@@deriving sexp, equal]
 type address = { segment : segment; offset : int } [@@deriving sexp, equal]
-type data_entry = Const of int | Address of address [@@deriving sexp, equal]
+type data_entry = Const of int | Label of string [@@deriving sexp, equal]
 
 type t = {
   data : data_entry list;
@@ -164,7 +164,7 @@ let parse_statement labels line =
           | Some i -> Instruction i
           | None -> raise @@ Parse_error ("unknown statement: " ^ line)))
 
-let make_sections statements resolve_label =
+let make_sections statements =
   let labels = Hashtbl.create (module String) in
   let data = Hashtbl.create (module Int) in
   let instructions = Hashtbl.create (module Int) in
@@ -187,8 +187,7 @@ let make_sections statements resolve_label =
           | Some (Data sub) -> (
               match value with
               | Long (Number n) -> add data sub (Const n)
-              | Long (Label label) ->
-                  add data sub (Address (resolve_label label))
+              | Long (Label label) -> add data sub (Label label)
               | String s ->
                   String.iter s ~f:(fun c ->
                       add data sub (Const (Char.to_int c))))
@@ -213,8 +212,8 @@ let make_sections statements resolve_label =
           ));
   (labels, data, instructions)
 
-let make_segments statements resolve_label =
-  let labels, data, instructions = make_sections statements resolve_label in
+let make_program statements =
+  let labels, data, instructions = make_sections statements in
   let flatten table =
     let sorted_subsections =
       Hashtbl.to_alist table
@@ -248,25 +247,15 @@ let make_segments statements resolve_label =
         | Data sub -> make_address data_subsection_offsets Data ~sub ~offset
         | Text sub -> make_address text_subsection_offsets Text ~sub ~offset)
   in
-  (* add elvm's magic heap base pointer *)
+  (* add elvm's magic heap base pointer. _edata stores
+     a pointer to the start of the heap. *)
   let data_len = List.length data_segment in
   Hashtbl.add_exn segment_labels ~key:"_edata"
     ~data:{ segment = Data; offset = data_len };
-  let data_segment =
-    data_segment @ [ Address { segment = Data; offset = data_len + 1 } ]
-  in
+  Hashtbl.add_exn segment_labels ~key:"__reserved_heap_start"
+    ~data:{ segment = Data; offset = data_len + 1 };
+  let data_segment = data_segment @ [ Label "__reserved_heap_start" ] in
   { data = data_segment; instructions = text_segment; labels = segment_labels }
-
-let make_program statements =
-  (* elvm has peculiar subsection behavior. As a result, we have to
-     parse out the .text and .data subsections, and then compile them
-     into two contiguous text and data segments. *)
-  (* all references to labels are set to 0 as a first pass *)
-  let program =
-    make_segments statements (fun _ -> { segment = Data; offset = 0 })
-  in
-  (* parse again now that we know segment label offsets *)
-  make_segments statements (fun label -> Hashtbl.find_exn program.labels label)
 
 let parse_exn source =
   let lines =

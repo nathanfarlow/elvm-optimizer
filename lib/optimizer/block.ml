@@ -5,6 +5,7 @@ type t = {
   statements : Statement.t list;
   branch : branch option;
 }
+[@@deriving sexp, equal]
 
 and branch = { primary : t; secondary : t option }
 
