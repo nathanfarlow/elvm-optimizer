@@ -5,7 +5,11 @@ open Expression
 open Statement
 open Block
 
-type t = Block.t list [@@deriving sexp, equal]
+type data_chunk = { label : string; data : Program.data_entry list }
+[@@deriving sexp, equal]
+
+type t = { blocks : Block.t list; data : data_chunk list }
+[@@deriving sexp, equal]
 
 let lift_imm_or_reg imm_or_reg =
   match imm_or_reg with
@@ -120,6 +124,9 @@ let remove_jmp_int program =
       Hashtbl.add_exn labels ~key:label ~data:{ segment = Text; offset = i });
   { program with instructions; labels }
 
+let labels_of_segment segment =
+  Hashtbl.filter ~f:(fun { segment = s; _ } -> equal_segment s segment)
+
 (* text offset -> label map *)
 let rec make_offset_label_mapping program =
   (* fprintf stdout "num labels = %d\n" (Hashtbl.length program.labels); *)
@@ -127,7 +134,7 @@ let rec make_offset_label_mapping program =
   let offset_to_label = Hashtbl.create (module Int) in
   try
     (* sort to eliminate nondeterminism in which duplicate label we remove*)
-    sorted_alist program.labels String.compare
+    sorted_alist (labels_of_segment Text program.labels) String.compare
     |> List.iter ~f:(fun (cur_label, { segment; offset }) ->
            match segment with
            | Text -> (
@@ -136,13 +143,8 @@ let rec make_offset_label_mapping program =
                | None ->
                    Hashtbl.add_exn offset_to_label ~key:offset ~data:cur_label
                | Some prev_label ->
-                   (* something like this happened:
-                       prev_label:
-                       cur_label:
-                        exit
-                       we can only keep one of them. the other one we remove and
-                       remap all references to the other. we keep prev_label unless
-                       cur_label is "main" *)
+                   (* this is an address at the same place as another. Keep the old one
+                      unless the new one is "main" *)
                    let keep, replace =
                      if String.equal cur_label "main" then
                        (cur_label, prev_label)
@@ -182,6 +184,17 @@ let make_blocks statements out_edges =
   in
   Hashtbl.mapi statements ~f:(fun ~key:label ~data:_ -> make_block label)
 
+let make_data program =
+  let labels = labels_of_segment Data program.labels in
+  let labels, offsets = List.unzip @@ sorted_alist labels String.compare in
+  let offsets =
+    List.map offsets ~f:(fun { offset; _ } -> offset)
+    |> Hash_set.of_list (module Int)
+  in
+  List.groupi program.data ~break:(fun i _ _ -> Hash_set.mem offsets i)
+  |> List.zip_exn labels
+  |> List.map ~f:(fun (label, data) -> { label; data })
+
 let of_program program =
   let program = remove_jmp_int program in
   let program, pc_to_label = make_offset_label_mapping program in
@@ -189,31 +202,36 @@ let of_program program =
   let statements = Hashtbl.create (module String) in
   let out_edges = Hashtbl.create (module String) in
 
-  let prev_label = ref None in
+  let fallthrough_label = ref None in
 
   List.iteri program.instructions ~f:(fun pc insn ->
       let label = Hashtbl.find_exn pc_to_label pc in
 
-      (* fallthrough *)
-      (match !prev_label with
+      (match !fallthrough_label with
       | Some prev_label ->
           Hashtbl.add_multi out_edges ~key:prev_label ~data:label
       | None -> ());
 
       Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
-      (match insn with
-      | Jump { target; _ } -> (
-          match target with
-          | Label l -> Hashtbl.add_multi out_edges ~key:label ~data:l
-          | Register _ -> ()
-          | Int _ -> assert false)
-      | _ -> ());
-      prev_label := Some label);
+      fallthrough_label :=
+        match insn with
+        | Jump { target; condition } ->
+            (match target with
+            | Label l -> Hashtbl.add_multi out_edges ~key:label ~data:l
+            | Register _ -> ()
+            | Int _ -> assert false);
+            Option.map condition ~f:(fun _ -> label)
+        | Exit -> None
+        | _ -> Some label);
 
-  if not @@ List.is_empty program.instructions then
-    let blocks = make_blocks statements out_edges in
-    [ Hashtbl.find_exn blocks (Hashtbl.find_exn pc_to_label 0) ]
-  else []
+  let blocks =
+    if not @@ List.is_empty program.instructions then
+      let blocks = make_blocks statements out_edges in
+      [ Hashtbl.find_exn blocks (Hashtbl.find_exn pc_to_label 0) ]
+    else []
+  in
+  let data = make_data program in
+  { blocks; data }
 
 let optimize _ = failwith "unimplemented"
 let to_program _ = failwith "unimplemented"
