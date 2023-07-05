@@ -41,48 +41,48 @@ let%expect_test "sub is lifted correctly" =
   statements [ Sub { dst = A; src = Int 5 } ] [] [] |> print;
   [%expect
     {|
-         ((blocks
-           (((label __L0)
-             (statements
-              ((Assign ((dst (Register A)) (src (Sub (Register A) (Const 5)))))))
-             (branch ()))))
-          (data ())) |}]
+    ((blocks
+      (((label __L0)
+        (statements
+         ((Assign ((dst (Register A)) (src (Sub (Register A) (Const 5)))))))
+        (branch ()))))
+     (data ())) |}]
 
 let%expect_test "load is lifted correctly" =
   statements [ Load { dst = A; src = Register B } ] [] [] |> print;
   [%expect
     {|
-         ((blocks
-           (((label __L0)
-             (statements ((Assign ((dst (Register A)) (src (Memory (Register B)))))))
-             (branch ()))))
-          (data ())) |}]
+    ((blocks
+      (((label __L0)
+        (statements ((Assign ((dst (Register A)) (src (Memory (Register B)))))))
+        (branch ()))))
+     (data ())) |}]
 
 let%expect_test "store is lifted correctly" =
   statements [ Store { dst = Register A; src = B } ] [] [] |> print;
   [%expect
     {|
-         ((blocks
-           (((label __L0)
-             (statements ((Assign ((dst (Memory (Register A))) (src (Register B))))))
-             (branch ()))))
-          (data ())) |}]
+    ((blocks
+      (((label __L0)
+        (statements ((Assign ((dst (Memory (Register A))) (src (Register B))))))
+        (branch ()))))
+     (data ())) |}]
 
 let%expect_test "putc is lifted correctly" =
   statements [ Putc (Register A) ] [] [] |> print;
   [%expect
     {|
-      ((blocks (((label __L0) (statements ((Putc (Register A)))) (branch ()))))
-       (data ())) |}]
+    ((blocks (((label __L0) (statements ((Putc (Register A)))) (branch ()))))
+     (data ())) |}]
 
 let%expect_test "getc is lifted correctly" =
   statements [ Getc A ] [] [] |> print;
   [%expect
     {|
-           ((blocks
-             (((label __L0) (statements ((Assign ((dst (Register A)) (src Getc)))))
-               (branch ()))))
-            (data ())) |}]
+    ((blocks
+      (((label __L0) (statements ((Assign ((dst (Register A)) (src Getc)))))
+        (branch ()))))
+     (data ())) |}]
 
 let%expect_test "exit is lifted correctly" =
   statements [ Exit ] [] [] |> print;
@@ -93,10 +93,10 @@ let%expect_test "jump is lifted correctly" =
   statements [ Jump { target = Register A; condition = None } ] [] [] |> print;
   [%expect
     {|
-         ((blocks
-           (((label __L0) (statements ((Jump ((target (Register A)) (condition ())))))
-             (branch ()))))
-          (data ())) |}]
+    ((blocks
+      (((label __L0) (statements ((Jump ((target (Register A)) (condition ())))))
+        (branch ()))))
+     (data ())) |}]
 
 let%expect_test "set is lifted correctly" =
   statements
@@ -105,14 +105,14 @@ let%expect_test "set is lifted correctly" =
   |> print;
   [%expect
     {|
-         ((blocks
-           (((label __L0)
-             (statements
-              ((Assign
-                ((dst (Register B))
-                 (src (Set ((comparison Eq) (a (Register B)) (b (Register A)))))))))
-             (branch ()))))
-          (data ())) |}]
+    ((blocks
+      (((label __L0)
+        (statements
+         ((Assign
+           ((dst (Register B))
+            (src (Set ((comparison Eq) (a (Register B)) (b (Register A)))))))))
+        (branch ()))))
+     (data ())) |}]
 
 let%expect_test "many labels are eliminated" =
   let address = { segment = Text; offset = 0 } in
@@ -134,17 +134,20 @@ let%expect_test "fallthrough branches are added for each instruction" =
   statements instructions [] [] |> print;
   [%expect
     {|
-         ((blocks
-           (((label __L0)
-             (statements ((Assign ((dst (Register A)) (src (Register A))))))
-             (branch
-              (((primary ((label __L1) (statements (Exit)) (branch ())))
-                (secondary ())))))))
-          (data ())) |}]
+    ((blocks
+      (((label __L0)
+        (statements ((Assign ((dst (Register A)) (src (Register A))))))
+        (branch
+         (((primary ((label __L1) (statements (Exit)) (branch ())))
+           (secondary ())))))))
+     (data ())) |}]
 
-(* let%expect_test "data addresses are updated" =
-   let labels = [ ("foo", { segment = Text; offset = 0 }) ] in
-   let instructions = [ Exit ] in
-   let data = [ Label "foo" ] in
-   statements instructions labels data |> print;
-   [%expect {| (((label __L0) (statements (Exit)) (branch ()))) |}] *)
+let%expect_test "data addresses are updated" =
+  let labels = [ ("foo", { segment = Text; offset = 0 }) ] in
+  let instructions = [ Exit ] in
+  let data = [ Label "foo" ] in
+  statements instructions labels data |> print;
+  [%expect
+    {|
+      ((blocks (((label __L0) (statements (Exit)) (branch ()))))
+       (data (((label __D0) (data ((Label __L0))))))) |}]

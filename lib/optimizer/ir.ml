@@ -55,12 +55,12 @@ let lift_insn = function
       Assign { dst = Register args.dst; src = Set cond }
   | Dump -> Dump
 
+(* f must be deterministic mapping *)
 let update_labels program ~f =
   let labels = Hashtbl.create (module String) in
   Hashtbl.iteri program.labels ~f:(fun ~key ~data ->
       let new_label = f key in
       Hashtbl.set labels ~key:new_label ~data);
-
   let instructions =
     let update_imm_or_reg = function
       | Int x -> Int x
@@ -93,22 +93,23 @@ let update_labels program ~f =
   in
   { instructions; data; labels }
 
-let sorted_alist map compare =
+let sorted_alist map ~compare =
   let alist = Hashtbl.to_alist map in
   List.sort alist ~compare:(fun (a, _) (b, _) -> compare a b)
+
+let fresh_label prefix program =
+  let i = ref 0 in
+  let rec loop () =
+    let label = sprintf "%s%d" prefix !i in
+    incr i;
+    if Hashtbl.mem program.labels label then loop () else label
+  in
+  loop
 
 (* Replace jmp int with jmp label. Also, every instruction now
    has at least one corresponding label. *)
 let remove_jmp_int program =
-  let fresh =
-    let i = ref 0 in
-    let rec loop () =
-      let label = sprintf "__L%d" !i in
-      incr i;
-      if Hashtbl.mem program.labels label then loop () else label
-    in
-    loop
-  in
+  let fresh = fresh_label "__L" program in
   let int_labels =
     Array.init (List.length program.instructions) ~f:(fun _ -> fresh ())
   in
@@ -129,12 +130,11 @@ let labels_of_segment segment =
 
 (* text offset -> label map *)
 let rec make_offset_label_mapping program =
-  (* fprintf stdout "num labels = %d\n" (Hashtbl.length program.labels); *)
   let exception Program_changed of Program.t in
   let offset_to_label = Hashtbl.create (module Int) in
   try
     (* sort to eliminate nondeterminism in which duplicate label we remove*)
-    sorted_alist (labels_of_segment Text program.labels) String.compare
+    sorted_alist (labels_of_segment Text program.labels) ~compare:String.compare
     |> List.iter ~f:(fun (cur_label, { segment; offset }) ->
            match segment with
            | Text -> (
@@ -184,21 +184,7 @@ let make_blocks statements out_edges =
   in
   Hashtbl.mapi statements ~f:(fun ~key:label ~data:_ -> make_block label)
 
-let make_data program =
-  let labels = labels_of_segment Data program.labels in
-  let labels, offsets = List.unzip @@ sorted_alist labels String.compare in
-  let offsets =
-    List.map offsets ~f:(fun { offset; _ } -> offset)
-    |> Hash_set.of_list (module Int)
-  in
-  List.groupi program.data ~break:(fun i _ _ -> Hash_set.mem offsets i)
-  |> List.zip_exn labels
-  |> List.map ~f:(fun (label, data) -> { label; data })
-
-let of_program program =
-  let program = remove_jmp_int program in
-  let program, pc_to_label = make_offset_label_mapping program in
-
+let make_top_level_block program pc_to_label =
   let statements = Hashtbl.create (module String) in
   let out_edges = Hashtbl.create (module String) in
 
@@ -224,11 +210,37 @@ let of_program program =
         | Exit -> None
         | _ -> Some label);
 
+  let blocks = make_blocks statements out_edges in
+  Option.bind (Hashtbl.find pc_to_label 0) ~f:(Hashtbl.find blocks)
+
+let make_data program =
+  let labels = labels_of_segment Data program.labels in
+
+  (* add a first data label if there isn't one *)
+  let key = (fresh_label "__D" program) () in
+  let data = { segment = Data; offset = 0 } in
+  ignore @@ Hashtbl.add labels ~key ~data;
+
+  let labels, addresses =
+    labels |> sorted_alist ~compare:String.compare |> List.unzip
+  in
+  let offsets =
+    List.map addresses ~f:(fun { offset; _ } -> offset)
+    |> Hash_set.of_list (module Int)
+  in
+  match
+    List.groupi program.data ~break:(fun i _ _ -> Hash_set.mem offsets i)
+    |> List.zip labels
+  with
+  | Ok data -> List.map data ~f:(fun (label, data) -> { label; data })
+  | Unequal_lengths -> []
+
+let of_program program =
+  let program = remove_jmp_int program in
+  let program, pc_to_label = make_offset_label_mapping program in
   let blocks =
-    if not @@ List.is_empty program.instructions then
-      let blocks = make_blocks statements out_edges in
-      [ Hashtbl.find_exn blocks (Hashtbl.find_exn pc_to_label 0) ]
-    else []
+    make_top_level_block program pc_to_label
+    |> Option.map ~f:List.return |> Option.value ~default:[]
   in
   let data = make_data program in
   { blocks; data }
