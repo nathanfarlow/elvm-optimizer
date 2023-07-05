@@ -1,7 +1,7 @@
 open Core
 open Elvm_opt
-open! Instruction
-open! Program
+open Instruction
+open Program
 
 let print exp = print_s [%sexp (exp : Ir.t)]
 
@@ -9,7 +9,7 @@ let elvm instructions labels data =
   let labels = Hashtbl.of_alist_exn (module String) labels in
   Program.{ instructions; labels; data }
 
-let ir instructions labels data = elvm instructions labels data |> Ir.of_program
+let ir instructions labels data = elvm instructions labels data |> Lift.f
 
 let%expect_test "no instructions is empty list" =
   ir [] [] [] |> print;
@@ -146,6 +146,8 @@ let%expect_test "fallthrough branches are added for each instruction" =
            (secondary ())))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
+(* TODO: test jump branches *)
+
 let%expect_test "data references are updated for label rewrite" =
   let labels = [ ("foo", { segment = Text; offset = 0 }) ] in
   let instructions = [ Exit ] in
@@ -198,13 +200,14 @@ let%expect_test "text references are updated for label rewrite" =
       (((label __reserved_heap_base) (data Heap))
        ((label a) (data (Chunk ((Const 0)))))))) |}]
 
-let%expect_test "program with no data but data labels has just heap" =
+let%expect_test "program with no data with data labels has just heap" =
   let labels = [ ("a", { segment = Data; offset = 0 }) ] in
   ir [] labels [] |> print;
   [%expect
     {| ((blocks ()) (data (((label __reserved_heap_base) (data Heap))))) |}]
 
-let%expect_test "program with no instructions by labels has no instructions" =
+let%expect_test "program with no instructions with text labels has no \
+                 instructions" =
   let labels = [ ("a", { segment = Text; offset = 0 }) ] in
   ir [] labels [] |> print;
   [%expect

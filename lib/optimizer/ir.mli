@@ -7,5 +7,3 @@ type t = { blocks : Block.t list; data : data_block list }
 [@@deriving sexp, equal]
 
 val optimize : t -> t
-val of_program : Program.t -> t
-val to_program : Program.t -> t

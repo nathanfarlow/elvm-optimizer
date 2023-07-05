@@ -44,23 +44,23 @@ let rec equal a b =
       equal_comparison c1 c2 && equal a1 a2 && equal b1 b2
   | _ -> false
 
-let rec simplify' = function
+let rec optimize' = function
   | Const _ as x -> (x, false)
   | Label _ as x -> (x, false)
   | Register _ as x -> (x, false)
   | Memory addr ->
-      let x, did_change = simplify' addr in
+      let x, did_change = optimize' addr in
       (Memory x, did_change)
-  | Add xs -> simplify_add xs
-  | Sub (x, y) -> simplify_sub x y
+  | Add xs -> optimize_add xs
+  | Sub (x, y) -> optimize_sub x y
   | Getc -> (Getc, false)
-  | Set { comparison; a; b } -> simplify_set comparison a b
+  | Set { comparison; a; b } -> optimize_set comparison a b
 
-and simplify_add xs =
+and optimize_add xs =
   let xs = List.concat_map xs ~f:(function Add xs -> xs | x -> [ x ]) in
   match xs with
   | [] -> (Const 0, false)
-  | [ x ] -> simplify' x
+  | [ x ] -> optimize' x
   | _ ->
       let constants, others =
         List.partition_tf ~f:(function Const _ -> true | _ -> false) xs
@@ -70,21 +70,21 @@ and simplify_add xs =
             match x with Const x -> acc + x | _ -> assert false)
       in
       let did_simp_const = List.length constants > 1 in
-      let others, other_changes = List.map others ~f:simplify' |> List.unzip in
+      let others, other_changes = List.map others ~f:optimize' |> List.unzip in
       let did_change = did_simp_const || List.exists other_changes ~f:Fn.id in
       (Add (Const constant_sum :: others), did_change)
 
-and simplify_sub x y =
-  let x, x_changed = simplify' x in
-  let y, y_changed = simplify' y in
+and optimize_sub x y =
+  let x, x_changed = optimize' x in
+  let y, y_changed = optimize' y in
   match (x, y) with
   | Const x, Const y -> (Const (x - y), true)
   | _ when equal x y -> (Const 0, true)
   | _ -> (Sub (x, y), x_changed || y_changed)
 
-and simplify_set comparison a b =
-  let a, a_changed = simplify' a in
-  let b, b_changed = simplify' b in
+and optimize_set comparison a b =
+  let a, a_changed = optimize' a in
+  let b, b_changed = optimize' b in
   match (a, b) with
   | Const a, Const b ->
       let const_compare comparison a b =
@@ -104,6 +104,6 @@ and simplify_set comparison a b =
       | Le when equal -> (Const 1, true)
       | _ -> (Set { comparison; a; b }, a_changed || b_changed))
 
-let rec simplify t =
-  let t, did_change = simplify' t in
-  if did_change then simplify t else t
+let rec optimize t =
+  let t, did_change = optimize' t in
+  if did_change then optimize t else t
