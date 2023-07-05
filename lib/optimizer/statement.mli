@@ -18,3 +18,4 @@ type t =
 [@@deriving sexp, equal]
 
 val optimize : t -> t * bool
+val references : t -> string list
