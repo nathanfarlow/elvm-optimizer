@@ -9,16 +9,15 @@ let elvm instructions labels data =
   let labels = Hashtbl.of_alist_exn (module String) labels in
   Program.{ instructions; labels; data }
 
-let statements instructions labels data =
-  elvm instructions labels data |> Ir.of_program
+let ir instructions labels data = elvm instructions labels data |> Ir.of_program
 
 let%expect_test "no instructions is empty list" =
-  statements [] [] [] |> print;
+  ir [] [] [] |> print;
   [%expect
     {| ((blocks ()) (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "mov is lifted correctly" =
-  statements [ Mov { dst = A; src = Register A } ] [] [] |> print;
+  ir [ Mov { dst = A; src = Register A } ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -28,7 +27,7 @@ let%expect_test "mov is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "add is lifted correctly" =
-  statements [ Add { dst = A; src = Label "label" } ] [] [] |> print;
+  ir [ Add { dst = A; src = Label "label" } ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -39,7 +38,7 @@ let%expect_test "add is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "sub is lifted correctly" =
-  statements [ Sub { dst = A; src = Int 5 } ] [] [] |> print;
+  ir [ Sub { dst = A; src = Int 5 } ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -50,7 +49,7 @@ let%expect_test "sub is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "load is lifted correctly" =
-  statements [ Load { dst = A; src = Register B } ] [] [] |> print;
+  ir [ Load { dst = A; src = Register B } ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -60,7 +59,7 @@ let%expect_test "load is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "store is lifted correctly" =
-  statements [ Store { dst = Register A; src = B } ] [] [] |> print;
+  ir [ Store { dst = Register A; src = B } ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -70,14 +69,14 @@ let%expect_test "store is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "putc is lifted correctly" =
-  statements [ Putc (Register A) ] [] [] |> print;
+  ir [ Putc (Register A) ] [] [] |> print;
   [%expect
     {|
     ((blocks (((label __L0) (statements ((Putc (Register A)))) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "getc is lifted correctly" =
-  statements [ Getc A ] [] [] |> print;
+  ir [ Getc A ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -86,14 +85,14 @@ let%expect_test "getc is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "exit is lifted correctly" =
-  statements [ Exit ] [] [] |> print;
+  ir [ Exit ] [] [] |> print;
   [%expect
     {|
       ((blocks (((label __L0) (statements (Exit)) (branch ()))))
        (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "jump is lifted correctly" =
-  statements [ Jump { target = Register A; condition = None } ] [] [] |> print;
+  ir [ Jump { target = Register A; condition = None } ] [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -102,9 +101,7 @@ let%expect_test "jump is lifted correctly" =
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "set is lifted correctly" =
-  statements
-    [ Set { comparison = Eq; args = { dst = B; src = Register A } } ]
-    [] []
+  ir [ Set { comparison = Eq; args = { dst = B; src = Register A } } ] [] []
   |> print;
   [%expect
     {|
@@ -117,11 +114,11 @@ let%expect_test "set is lifted correctly" =
         (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
-let%expect_test "many labels are eliminated" =
+let%expect_test "many text labels are eliminated" =
   let address = { segment = Text; offset = 0 } in
   let labels = [ ("foo", address); ("baz", address); ("bar", address) ] in
   let instructions = [ Exit ] in
-  statements instructions labels [] |> print;
+  ir instructions labels [] |> print;
   [%expect
     {|
       ((blocks (((label __L0) (statements (Exit)) (branch ()))))
@@ -130,7 +127,7 @@ let%expect_test "many labels are eliminated" =
 let%expect_test "main is not clobbered" =
   let labels = [ ("main", { segment = Text; offset = 0 }) ] in
   let instructions = [ Exit ] in
-  statements instructions labels [] |> print;
+  ir instructions labels [] |> print;
   [%expect
     {|
       ((blocks (((label main) (statements (Exit)) (branch ()))))
@@ -138,7 +135,7 @@ let%expect_test "main is not clobbered" =
 
 let%expect_test "fallthrough branches are added for each instruction" =
   let instructions = [ Mov { dst = A; src = Register A }; Exit ] in
-  statements instructions [] [] |> print;
+  ir instructions [] [] |> print;
   [%expect
     {|
     ((blocks
@@ -149,11 +146,11 @@ let%expect_test "fallthrough branches are added for each instruction" =
            (secondary ())))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
-let%expect_test "data addresses are updated" =
+let%expect_test "data references are updated for label rewrite" =
   let labels = [ ("foo", { segment = Text; offset = 0 }) ] in
   let instructions = [ Exit ] in
   let data = [ Label "foo" ] in
-  statements instructions labels data |> print;
+  ir instructions labels data |> print;
   [%expect
     {|
       ((blocks (((label __L0) (statements (Exit)) (branch ()))))
@@ -172,12 +169,43 @@ let%expect_test "data is segmented correctly" =
   in
   let instructions = [ Exit ] in
   let data = [ Const 0; Const 1; Const 2; Const 3; Const 4 ] in
-  statements instructions labels data |> print;
+  ir instructions labels data |> print;
   [%expect
     {|
     ((blocks (((label __L0) (statements (Exit)) (branch ()))))
      (data
       (((label __reserved_heap_base) (data Heap))
        ((label foo) (data (Chunk ((Const 0) (Const 1)))))
-       ((label baz) (data (Chunk ((Const 2)))))
+       ((label bar) (data (Chunk ((Const 2)))))
        ((label qux) (data (Chunk ((Const 3) (Const 4)))))))) |}]
+
+let%expect_test "text references are updated for label rewrite" =
+  let labels =
+    [
+      ("a", { segment = Data; offset = 0 });
+      ("b", { segment = Data; offset = 0 });
+    ]
+  in
+  let instructions = [ Mov { dst = A; src = Label "b" } ] in
+  let data = [ Const 0 ] in
+  ir instructions labels data |> print;
+  [%expect
+    {|
+    ((blocks
+      (((label __L0) (statements ((Assign ((dst (Register A)) (src (Label a))))))
+        (branch ()))))
+     (data
+      (((label __reserved_heap_base) (data Heap))
+       ((label a) (data (Chunk ((Const 0)))))))) |}]
+
+let%expect_test "program with no data but data labels has just heap" =
+  let labels = [ ("a", { segment = Data; offset = 0 }) ] in
+  ir [] labels [] |> print;
+  [%expect
+    {| ((blocks ()) (data (((label __reserved_heap_base) (data Heap))))) |}]
+
+let%expect_test "program with no instructions by labels has no instructions" =
+  let labels = [ ("a", { segment = Text; offset = 0 }) ] in
+  ir [] labels [] |> print;
+  [%expect
+    {| ((blocks ()) (data (((label __reserved_heap_base) (data Heap))))) |}]

@@ -131,36 +131,32 @@ let remove_jmp_int program =
 let labels_of_segment segment =
   Hashtbl.filter ~f:(fun { segment = s; _ } -> equal_segment s segment)
 
-(* text offset -> label map *)
-let rec make_offset_to_label_mapping program =
+let rec make_offset_to_label_mapping program segment =
   let exception Program_changed of Program.t in
   let offset_to_label = Hashtbl.create (module Int) in
   try
     (* sort to eliminate nondeterminism in which duplicate label we remove*)
-    sorted_alist (labels_of_segment Text program.labels) ~compare:String.compare
-    |> List.iter ~f:(fun (cur_label, { segment; offset }) ->
-           match segment with
-           | Text -> (
-               match Hashtbl.find offset_to_label offset with
-               (* first time we've seen this offset *)
-               | None ->
-                   Hashtbl.add_exn offset_to_label ~key:offset ~data:cur_label
-               | Some prev_label ->
-                   (* this is an address at the same place as another. Keep the old one
-                      unless the new one is "main" *)
-                   let keep, replace =
-                     if String.equal cur_label "main" then
-                       (cur_label, prev_label)
-                     else (prev_label, cur_label)
-                   in
-                   let program_with_label_removed =
-                     update_labels program ~f:(fun label ->
-                         if String.equal label replace then keep else label)
-                   in
-                   raise (Program_changed program_with_label_removed))
-           | Data -> ());
+    sorted_alist
+      (labels_of_segment segment program.labels)
+      ~compare:String.compare
+    |> List.iter ~f:(fun (cur_label, { offset; _ }) ->
+           match Hashtbl.find offset_to_label offset with
+           (* first time we've seen this offset *)
+           | None -> Hashtbl.add_exn offset_to_label ~key:offset ~data:cur_label
+           | Some prev_label ->
+               (* this is an address at the same place as another. Keep the old one
+                  unless the new one is "main" *)
+               let keep, replace =
+                 if String.equal cur_label "main" then (cur_label, prev_label)
+                 else (prev_label, cur_label)
+               in
+               let program_with_label_removed =
+                 update_labels program ~f:(fun label ->
+                     if String.equal label replace then keep else label)
+               in
+               raise (Program_changed program_with_label_removed));
     (program, offset_to_label)
-  with Program_changed program -> make_offset_to_label_mapping program
+  with Program_changed program -> make_offset_to_label_mapping program segment
 
 let make_blocks statements out_edges =
   let make_block make_block label =
@@ -213,42 +209,38 @@ let make_top_level_block program pc_to_label =
   let blocks = make_blocks statements out_edges in
   Option.bind (Hashtbl.find pc_to_label 0) ~f:(Hashtbl.find blocks)
 
-let make_data program =
-  let offset_to_label = Hashtbl.create (module Int) in
-  labels_of_segment Data program.labels
-  (* sort for deterministic overwrite *)
-  |> sorted_alist ~compare:String.compare
-  |> List.iter ~f:(fun (label, { offset; _ }) ->
-         Hashtbl.set offset_to_label ~key:offset ~data:label);
-
-  (* remove special heap base label for now. we'll handle it later *)
+let make_data (program : Program.t) offset_to_label =
+  (* remove special heap base label for now. we handle it explicitly *)
   Hashtbl.filter_inplace offset_to_label ~f:(fun label ->
       not (String.equal label Program.heap_label));
 
-  (* add a first data label if there isn't one *)
-  (if not @@ List.is_empty program.data then
-     let fresh_label = (fresh_label "__D" program) () in
-     ignore @@ Hashtbl.add offset_to_label ~key:0 ~data:fresh_label);
+  let heap_entry = { label = Program.heap_label; data = Heap } in
+  if not @@ List.is_empty program.data then (
+    (* add a first data label if there isn't one *)
+    let fresh_label = (fresh_label "__D" program) () in
+    ignore @@ Hashtbl.add offset_to_label ~key:0 ~data:fresh_label;
 
-  let sorted_labels_by_offset =
-    sorted_alist offset_to_label ~compare:Int.compare |> List.map ~f:snd
-  in
-  let chunks =
-    List.groupi program.data ~break:(fun i _ _ -> Hashtbl.mem offset_to_label i)
-    |> List.zip_exn sorted_labels_by_offset
-    |> List.map ~f:(fun (label, data) -> { label; data = Chunk data })
-  in
-  (* add special heap base label back *)
-  { label = Program.heap_label; data = Heap } :: chunks
+    let sorted_labels_by_offset =
+      sorted_alist offset_to_label ~compare:Int.compare |> List.map ~f:snd
+    in
+    let chunks =
+      List.groupi program.data ~break:(fun i _ _ ->
+          Hashtbl.mem offset_to_label i)
+      |> List.zip_exn sorted_labels_by_offset
+      |> List.map ~f:(fun (label, data) -> { label; data = Chunk data })
+    in
+    heap_entry :: chunks)
+  else [ heap_entry ]
 
 let of_program program =
   let program = remove_jmp_int program in
-  let program, pc_to_label = make_offset_to_label_mapping program in
+  let program, pc_to_label = make_offset_to_label_mapping program Text in
+  let program, data_to_label = make_offset_to_label_mapping program Data in
   let blocks =
     make_top_level_block program pc_to_label
     |> Option.map ~f:List.return |> Option.value ~default:[]
   in
-  let data = make_data program in
+  let data = make_data program data_to_label in
   { blocks; data }
 
 let optimize _ = failwith "unimplemented"
