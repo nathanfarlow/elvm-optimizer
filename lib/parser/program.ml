@@ -29,6 +29,8 @@ module Section = struct
   type t = Text of int | Data of int
 end
 
+let heap_label = "__reserved_heap_base"
+
 let parse_label line =
   match String.split line ~on:':' with [ label; "" ] -> Some label | _ -> None
 
@@ -245,9 +247,9 @@ let make_program statements =
   let data_len = List.length data_segment in
   Hashtbl.add_exn segment_labels ~key:"_edata"
     ~data:{ segment = Data; offset = data_len };
-  Hashtbl.add_exn segment_labels ~key:"__reserved_heap_start"
+  Hashtbl.add_exn segment_labels ~key:heap_label
     ~data:{ segment = Data; offset = data_len + 1 };
-  let data_segment = data_segment @ [ Label "__reserved_heap_start" ] in
+  let data_segment = data_segment @ [ Label heap_label ] in
   { data = data_segment; instructions = text_segment; labels = segment_labels }
 
 let parse_exn source =

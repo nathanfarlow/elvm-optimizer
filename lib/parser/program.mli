@@ -13,3 +13,4 @@ type t = {
 exception Parse_error of string
 
 val parse_exn : string -> t
+val heap_label : string

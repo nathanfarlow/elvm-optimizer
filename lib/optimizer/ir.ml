@@ -5,10 +5,12 @@ open Expression
 open Statement
 open Block
 
-type data_chunk = { label : string; data : Program.data_entry list }
+type data_type = Chunk of Program.data_entry list | Heap
 [@@deriving sexp, equal]
 
-type t = { blocks : Block.t list; data : data_chunk list }
+type data_block = { label : string; data : data_type } [@@deriving sexp, equal]
+
+type t = { blocks : Block.t list; data : data_block list }
 [@@deriving sexp, equal]
 
 let lift_imm_or_reg imm_or_reg =
@@ -55,8 +57,9 @@ let lift_insn = function
       Assign { dst = Register args.dst; src = Set cond }
   | Dump -> Dump
 
-(* f must be deterministic mapping *)
+(* f is a mapping from label -> new label *)
 let update_labels program ~f =
+  let f = Memo.general f in
   let labels = Hashtbl.create (module String) in
   Hashtbl.iteri program.labels ~f:(fun ~key ~data ->
       let new_label = f key in
@@ -129,7 +132,7 @@ let labels_of_segment segment =
   Hashtbl.filter ~f:(fun { segment = s; _ } -> equal_segment s segment)
 
 (* text offset -> label map *)
-let rec make_offset_label_mapping program =
+let rec make_offset_to_label_mapping program =
   let exception Program_changed of Program.t in
   let offset_to_label = Hashtbl.create (module Int) in
   try
@@ -157,31 +160,27 @@ let rec make_offset_label_mapping program =
                    raise (Program_changed program_with_label_removed))
            | Data -> ());
     (program, offset_to_label)
-  with Program_changed program -> make_offset_label_mapping program
+  with Program_changed program -> make_offset_to_label_mapping program
 
 let make_blocks statements out_edges =
-  let block_cache = Hashtbl.create (module String) in
-  let rec make_block label =
-    match Hashtbl.find block_cache label with
-    | Some block -> block
-    | None ->
-        let statement = Hashtbl.find_exn statements label in
-        let edges = Hashtbl.find out_edges label in
-        let branch =
-          match edges with
-          | None -> None
-          | Some [ primary ] ->
-              Some { primary = make_block primary; secondary = None }
-          | Some [ primary; secondary ] ->
-              let primary = make_block primary in
-              let secondary = make_block secondary in
-              Some { primary; secondary = Some secondary }
-          | _ -> assert false
-        in
-        let block = { label; statements = [ statement ]; branch } in
-        Hashtbl.add_exn block_cache ~key:label ~data:block;
-        block
+  let make_block make_block label =
+    let statement = Hashtbl.find_exn statements label in
+    let edges = Hashtbl.find out_edges label in
+    let branch =
+      match edges with
+      | None -> None
+      | Some [ primary ] ->
+          Some { primary = make_block primary; secondary = None }
+      | Some [ primary; secondary ] ->
+          let primary = make_block primary in
+          let secondary = make_block secondary in
+          Some { primary; secondary = Some secondary }
+      | _ -> assert false
+    in
+    let block = { label; statements = [ statement ]; branch } in
+    block
   in
+  let make_block = Memo.recursive ~hashable:String.hashable make_block in
   Hashtbl.mapi statements ~f:(fun ~key:label ~data:_ -> make_block label)
 
 let make_top_level_block program pc_to_label =
@@ -205,6 +204,7 @@ let make_top_level_block program pc_to_label =
             (match target with
             | Label l -> Hashtbl.add_multi out_edges ~key:label ~data:l
             | Register _ -> ()
+            (* these should have already been replaced with jump label *)
             | Int _ -> assert false);
             Option.map condition ~f:(fun _ -> label)
         | Exit -> None
@@ -214,30 +214,36 @@ let make_top_level_block program pc_to_label =
   Option.bind (Hashtbl.find pc_to_label 0) ~f:(Hashtbl.find blocks)
 
 let make_data program =
-  let labels = labels_of_segment Data program.labels in
+  let offset_to_label = Hashtbl.create (module Int) in
+  labels_of_segment Data program.labels
+  (* sort for deterministic overwrite *)
+  |> sorted_alist ~compare:String.compare
+  |> List.iter ~f:(fun (label, { offset; _ }) ->
+         Hashtbl.set offset_to_label ~key:offset ~data:label);
+
+  (* remove special heap base label for now. we'll handle it later *)
+  Hashtbl.filter_inplace offset_to_label ~f:(fun label ->
+      not (String.equal label Program.heap_label));
 
   (* add a first data label if there isn't one *)
-  let key = (fresh_label "__D" program) () in
-  let data = { segment = Data; offset = 0 } in
-  ignore @@ Hashtbl.add labels ~key ~data;
+  (if not @@ List.is_empty program.data then
+     let fresh_label = (fresh_label "__D" program) () in
+     ignore @@ Hashtbl.add offset_to_label ~key:0 ~data:fresh_label);
 
-  let labels, addresses =
-    labels |> sorted_alist ~compare:String.compare |> List.unzip
+  let sorted_labels_by_offset =
+    sorted_alist offset_to_label ~compare:Int.compare |> List.map ~f:snd
   in
-  let offsets =
-    List.map addresses ~f:(fun { offset; _ } -> offset)
-    |> Hash_set.of_list (module Int)
+  let chunks =
+    List.groupi program.data ~break:(fun i _ _ -> Hashtbl.mem offset_to_label i)
+    |> List.zip_exn sorted_labels_by_offset
+    |> List.map ~f:(fun (label, data) -> { label; data = Chunk data })
   in
-  match
-    List.groupi program.data ~break:(fun i _ _ -> Hash_set.mem offsets i)
-    |> List.zip labels
-  with
-  | Ok data -> List.map data ~f:(fun (label, data) -> { label; data })
-  | Unequal_lengths -> []
+  (* add special heap base label back *)
+  { label = Program.heap_label; data = Heap } :: chunks
 
 let of_program program =
   let program = remove_jmp_int program in
-  let program, pc_to_label = make_offset_label_mapping program in
+  let program, pc_to_label = make_offset_to_label_mapping program in
   let blocks =
     make_top_level_block program pc_to_label
     |> Option.map ~f:List.return |> Option.value ~default:[]
