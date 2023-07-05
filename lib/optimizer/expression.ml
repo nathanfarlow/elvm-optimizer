@@ -57,30 +57,44 @@ let rec optimize' = function
   | Set { comparison; a; b } -> optimize_set comparison a b
 
 and optimize_add xs =
+  (* flatten adds *)
   let xs = List.concat_map xs ~f:(function Add xs -> xs | x -> [ x ]) in
   match xs with
-  | [] -> (Const 0, false)
+  | [] -> (Const 0, true)
   | [ x ] -> optimize' x
   | _ ->
       let constants, others =
         List.partition_tf ~f:(function Const _ -> true | _ -> false) xs
       in
+      (* flatten constants *)
       let constant_sum =
-        List.fold constants ~init:0 ~f:(fun acc x ->
-            match x with Const x -> acc + x | _ -> assert false)
+        List.fold constants ~init:0 ~f:(fun acc -> function
+          | Const x -> acc + x | _ -> assert false)
       in
-      let did_simp_const = List.length constants > 1 in
+      let did_constants_change =
+        (* don't add with 0 *)
+        (constant_sum = 0 && List.length constants >= 1)
+        (* simplified more than one constant to 1 *)
+        || List.length constants > 1
+      in
+      (* optimize non constants *)
       let others, other_changes = List.map others ~f:optimize' |> List.unzip in
-      let did_change = did_simp_const || List.exists other_changes ~f:Fn.id in
-      (Add (Const constant_sum :: others), did_change)
+      let did_others_change = List.exists other_changes ~f:Fn.id in
+      let optimized_terms =
+        if constant_sum = 0 then Add others
+        else Add (Const constant_sum :: others)
+      in
+      (optimized_terms, did_others_change || did_constants_change)
 
-and optimize_sub x y =
-  let x, x_changed = optimize' x in
-  let y, y_changed = optimize' y in
-  match (x, y) with
-  | Const x, Const y -> (Const (x - y), true)
-  | _ when equal x y -> (Const 0, true)
-  | _ -> (Sub (x, y), x_changed || y_changed)
+and optimize_sub a b =
+  let a, a_changed = optimize' a in
+  let b, b_changed = optimize' b in
+  match (a, b) with
+  | Const a, Const b -> (Const (a - b), true)
+  | a, Const b when b = 0 -> (a, true)
+  | a, Const b -> (Add [ a; Const (-b) ], true)
+  | _ when equal a b -> (Const 0, true)
+  | _ -> (Sub (a, b), a_changed || b_changed)
 
 and optimize_set comparison a b =
   let a, a_changed = optimize' a in

@@ -40,6 +40,15 @@ let%expect_test "add optimizes singular nested add" =
   print @@ optimize (Add [ Add [ Const 1 ] ]);
   [%expect {| (Const 1) |}]
 
+let%expect_test "add removes const 0" =
+  print @@ optimize (Add [ Const 0; Register A ]);
+  [%expect {| (Register A) |}]
+
+let%expect_test "add optimizes nested sub" =
+  print
+  @@ optimize (Add [ Const 1; Sub (Add [ Register A; Register B ], Const 1) ]);
+  [%expect {| (Add ((Register A) (Register B))) |}]
+
 let%expect_test "sub is 0 when args are same" =
   print @@ optimize (Sub (Memory (Const 0), Memory (Const 0)));
   [%expect {| (Const 0) |}]
@@ -47,6 +56,10 @@ let%expect_test "sub is 0 when args are same" =
 let%expect_test "sub evaluates constants" =
   print @@ optimize (Sub (Const 2, Const 1));
   [%expect {| (Const 1) |}]
+
+let%expect_test "sub simplifies to add for constants" =
+  print @@ optimize (Sub (Register A, Const 1));
+  [%expect {| (Add ((Const -1) (Register A))) |}]
 
 let%expect_test "set optimizes children" =
   print
