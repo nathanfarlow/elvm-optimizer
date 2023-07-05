@@ -157,7 +157,7 @@ let make_blocks statements out_edges =
       | None -> None
       | Some [ primary ] ->
           Some { primary = make_block primary; secondary = None }
-      | Some [ primary; secondary ] ->
+      | Some [ secondary; primary ] ->
           let primary = make_block primary in
           let secondary = make_block secondary in
           Some { primary; secondary = Some secondary }

@@ -146,7 +146,52 @@ let%expect_test "fallthrough branches are added for each instruction" =
            (secondary ())))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
-(* TODO: test jump branches *)
+let%expect_test "unconditional branch has edge to target" =
+  let labels = [ ("foo", { segment = Text; offset = 1 }) ] in
+  let instructions =
+    [ Jump { target = Label "foo"; condition = None }; Exit ]
+  in
+  ir instructions labels [] |> print;
+  [%expect
+    {|
+    ((blocks
+      (((label __L0) (statements ((Jump ((target (Label __L1)) (condition ())))))
+        (branch
+         (((primary ((label __L1) (statements (Exit)) (branch ())))
+           (secondary ())))))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
+
+let%expect_test "conditional branch have edges to targets" =
+  let labels = [ ("foo", { segment = Text; offset = 2 }) ] in
+  let instructions =
+    [
+      Jump
+        {
+          target = Label "foo";
+          condition =
+            Some { comparison = Eq; args = { dst = A; src = Register B } };
+        };
+      Putc (Register A);
+      Exit;
+    ]
+  in
+  ir instructions labels [] |> print;
+  [%expect
+    {|
+    ((blocks
+      (((label __L0)
+        (statements
+         ((Jump
+           ((target (Label __L2))
+            (condition (((comparison Eq) (a (Register A)) (b (Register B)))))))))
+        (branch
+         (((primary ((label __L2) (statements (Exit)) (branch ())))
+           (secondary
+            (((label __L1) (statements ((Putc (Register A))))
+              (branch
+               (((primary ((label __L2) (statements (Exit)) (branch ())))
+                 (secondary ())))))))))))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "data references are updated for label rewrite" =
   let labels = [ ("foo", { segment = Text; offset = 0 }) ] in
