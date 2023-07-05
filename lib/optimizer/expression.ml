@@ -124,3 +124,14 @@ let optimize t =
     if just_changed then aux t true else (t, changed_in_past || just_changed)
   in
   aux t false
+
+let references t =
+  let rec aux = function
+    | Label label -> [ label ]
+    | Memory addr -> aux addr
+    | Add xs -> List.concat_map xs ~f:aux
+    | Sub (x, y) -> aux x @ aux y
+    | Set { a; b; _ } -> aux a @ aux b
+    | _ -> []
+  in
+  List.dedup_and_sort ~compare:String.compare (aux t)

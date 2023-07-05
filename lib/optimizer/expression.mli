@@ -16,3 +16,4 @@ and t =
 
 val optimize : t -> t * bool
 val equal : t -> t -> bool
+val references : t -> string list
