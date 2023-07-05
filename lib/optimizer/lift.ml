@@ -48,7 +48,7 @@ let lift_insn = function
   | Set ({ args; _ } as cond) ->
       let cond = lift_cond cond in
       Assign { dst = Register args.dst; src = Set cond }
-  | Dump -> Dump
+  | Dump -> Nop
 
 (* f is a mapping from label -> new label *)
 let update_labels program ~f =

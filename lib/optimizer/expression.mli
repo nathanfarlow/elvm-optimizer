@@ -14,5 +14,5 @@ and t =
   | Set of condition
 [@@deriving sexp]
 
-val optimize : t -> t
+val optimize : t -> t * bool
 val equal : t -> t -> bool

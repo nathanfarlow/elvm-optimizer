@@ -2,6 +2,7 @@ open Core
 open Elvm_opt.Expression
 
 let print exp = print_s [%sexp (exp : t)]
+let optimize exp = optimize exp |> fst
 
 let%expect_test "const remains same" =
   optimize (Const 0) |> print;

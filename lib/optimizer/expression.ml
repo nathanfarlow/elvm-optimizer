@@ -118,6 +118,9 @@ and optimize_set comparison a b =
       | Le when equal -> (Const 1, true)
       | _ -> (Set { comparison; a; b }, a_changed || b_changed))
 
-let rec optimize t =
-  let t, did_change = optimize' t in
-  if did_change then optimize t else t
+let optimize t =
+  let rec aux t changed_in_past =
+    let t, just_changed = optimize' t in
+    if just_changed then aux t true else (t, changed_in_past || just_changed)
+  in
+  aux t false
