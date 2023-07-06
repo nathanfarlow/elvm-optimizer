@@ -2,8 +2,12 @@ open Core
 open Elvm_opt.Expression
 open Elvm_opt.Statement
 
+module Optimizer =
+  Elvm_opt.Statement_optimizer.Make (Elvm_opt.Expression_optimizer)
+
+let optimizer = Optimizer.create @@ Elvm_opt.Expression_optimizer.create ()
 let print stmt = print_s [%sexp (stmt : t)]
-let optimize stmt = optimize stmt |> fst
+let optimize stmt = Optimizer.optimize optimizer stmt |> fst
 let ugly_exp = Add [ Const 1; Const 1 ]
 
 let%expect_test "optimizes assign dst and src" =

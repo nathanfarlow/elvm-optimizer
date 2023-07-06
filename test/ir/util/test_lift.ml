@@ -257,3 +257,8 @@ let%expect_test "program with no instructions with text labels has no \
   ir [] labels [] |> print;
   [%expect
     {| ((blocks ()) (data (((label __reserved_heap_base) (data Heap))))) |}]
+
+(* let%expect_test "program with two control flow graphs" =
+   let labels = [ ("a", { segment = Text; offset = 1 }) ] in
+   let instructions = [ Exit; Exit ] in
+   ir instructions labels [] |> print *)

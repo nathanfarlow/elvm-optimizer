@@ -1,8 +1,9 @@
 open Core
 open Elvm_opt.Expression
 
+let optimizer = Elvm_opt.Expression_optimizer.create ()
 let print exp = print_s [%sexp (exp : t)]
-let optimize exp = optimize exp |> fst
+let optimize exp = Elvm_opt.Expression_optimizer.optimize optimizer exp |> fst
 
 let%expect_test "const remains same" =
   optimize (Const 0) |> print;

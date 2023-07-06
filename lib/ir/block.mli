@@ -11,5 +11,5 @@ type t = {
 and branch = { primary : t; secondary : t option }
 
 val optimize : t -> t
-val find_living : t -> Statement.variable list
+val dependencies : t -> Statement.variable list
 val references : t -> string list
