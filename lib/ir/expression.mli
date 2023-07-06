@@ -1,3 +1,5 @@
+open! Core
+
 type comparison = Eq | Ne | Lt | Le [@@deriving sexp, equal]
 
 and condition = { comparison : comparison; left : t; right : t }

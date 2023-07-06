@@ -1,3 +1,5 @@
+open! Core
+
 type t [@@deriving sexp, equal]
 
 type data_type = Chunk of Program.data_entry list | Heap

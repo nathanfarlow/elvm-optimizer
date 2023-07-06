@@ -1,6 +1,4 @@
 open Core
-open Program
-open Instruction
 
 exception Parse_error of string
 
@@ -75,6 +73,7 @@ let parse_register_exn s =
   | None -> raise @@ Parse_error (s ^ " is not a register")
 
 let parse_instruction line labels =
+  let open Instruction in
   let parse_immediate_or_register arg =
     let arg = List.hd_exn @@ String.split ~on:',' arg in
     match parse_number arg with
@@ -170,7 +169,7 @@ let make_sections statements =
           match !current_section with
           | Some (Data sub) -> (
               match value with
-              | Long (Number n) -> add data sub (Const n)
+              | Long (Number n) -> add data sub (Program.Const n)
               | Long (Label label) -> add data sub (Label label)
               | String s ->
                   String.iter s ~f:(fun c ->
@@ -222,7 +221,7 @@ let make_program statements =
 
   let make_address table segment ~sub ~offset =
     let offset = offset + Hashtbl.find_exn table sub in
-    { segment; offset }
+    Program.{ segment; offset }
   in
 
   let segment_labels =
@@ -236,10 +235,11 @@ let make_program statements =
   let data_len = List.length data_segment in
   Hashtbl.add_exn segment_labels ~key:"_edata"
     ~data:{ segment = Data; offset = data_len };
-  Hashtbl.add_exn segment_labels ~key:heap_label
+  Hashtbl.add_exn segment_labels ~key:Program.heap_label
     ~data:{ segment = Data; offset = data_len + 1 };
-  let data_segment = data_segment @ [ Label heap_label ] in
-  create ~data:data_segment ~instructions:text_segment ~labels:segment_labels
+  let data_segment = data_segment @ [ Label Program.heap_label ] in
+  Program.create ~data:data_segment ~instructions:text_segment
+    ~labels:segment_labels
 
 let f_exn source =
   let lines =

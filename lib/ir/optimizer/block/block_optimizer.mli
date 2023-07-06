@@ -1,3 +1,5 @@
+open! Core
+
 module Make
     (Statement_optimizer : Optimizer_intf.S with type target := Statement.t) : sig
   type t

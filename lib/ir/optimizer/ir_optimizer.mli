@@ -1,3 +1,5 @@
+open! Core
+
 module Make (Block_optimizer : Optimizer_intf.S with type target := Block.t) : sig
   type t
 

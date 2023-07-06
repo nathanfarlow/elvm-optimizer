@@ -1,3 +1,5 @@
+open! Core
+
 module Make
     (Expression_optimizer : Optimizer_intf.S with type target := Expression.t) : sig
   type t

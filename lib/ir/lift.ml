@@ -1,5 +1,4 @@
 open Core
-open Program
 
 let lift_imm_or_reg imm_or_reg =
   match imm_or_reg with
@@ -125,7 +124,7 @@ let rec make_offset_to_label_mapping program segment =
   let offset_to_label = Hashtbl.create (module Int) in
   try
     Hashtbl.filter (Program.labels program) ~f:(fun { segment = s; _ } ->
-        equal_segment s segment)
+        Program.equal_segment s segment)
     (* sort to eliminate nondeterminism in which duplicate label we'll remove*)
     |> sorted_alist ~compare:String.compare
     |> List.iter ~f:(fun (cur_label, { offset; _ }) ->
@@ -243,6 +242,7 @@ let make_data (program : Program.t) offset_to_label =
   else [ heap_entry ]
 
 let f program =
+  let open Program in
   let program = remove_jmp_int program in
   let program, pc_to_label = make_offset_to_label_mapping program Text in
   let program, data_to_label = make_offset_to_label_mapping program Data in
