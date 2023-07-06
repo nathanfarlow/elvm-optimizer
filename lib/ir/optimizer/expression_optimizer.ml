@@ -22,26 +22,28 @@ and optimize_add xs =
   | [] -> (Const 0, true)
   | [ x ] -> optimize' x
   | _ ->
-      let constants, others =
+      let consts, non_consts =
         List.partition_tf ~f:(function Const _ -> true | _ -> false) xs
       in
       (* flatten constants *)
       let constant_sum =
-        List.fold constants ~init:0 ~f:(fun acc -> function
+        List.fold consts ~init:0 ~f:(fun acc -> function
           | Const x -> acc + x | _ -> assert false)
       in
       let did_constants_change =
         (* don't add with 0 *)
-        (constant_sum = 0 && List.length constants >= 1)
+        (constant_sum = 0 && List.length consts >= 1)
         (* simplified more than one constant to 1 *)
-        || List.length constants > 1
+        || List.length consts > 1
       in
       (* optimize non constants *)
-      let others, other_changes = List.map others ~f:optimize' |> List.unzip in
-      let did_others_change = List.exists other_changes ~f:Fn.id in
+      let non_consts, non_consts_changes =
+        List.map non_consts ~f:optimize' |> List.unzip
+      in
+      let did_others_change = List.exists non_consts_changes ~f:Fn.id in
       let optimized_terms =
-        if constant_sum = 0 then Add others
-        else Add (Const constant_sum :: others)
+        if constant_sum = 0 then Add non_consts
+        else Add (Const constant_sum :: non_consts)
       in
       (optimized_terms, did_others_change || did_constants_change)
 
@@ -77,11 +79,5 @@ and optimize_set comparison a b =
       | Le when equal -> (Const 1, true)
       | _ -> (Set { comparison; a; b }, a_changed || b_changed))
 
-let optimize _ t =
-  let rec aux t changed_in_past =
-    let t, just_changed = optimize' t in
-    if just_changed then aux t true else (t, changed_in_past || just_changed)
-  in
-  aux t false
-
+let optimize _ = Optimizer_util.optimize_until_unchanging optimize'
 let create () = ()
