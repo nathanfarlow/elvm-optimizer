@@ -147,7 +147,36 @@ let rec make_offset_to_label_mapping program segment =
     (program, offset_to_label)
   with Program_changed program -> make_offset_to_label_mapping program segment
 
-let make_blocks statements out_edges =
+let make_graph program pc_to_label =
+  let statements = Hashtbl.create (module String) in
+  let out_edges = Hashtbl.create (module String) in
+
+  let fallthrough_label = ref None in
+
+  List.iteri program.instructions ~f:(fun pc insn ->
+      let label = Hashtbl.find_exn pc_to_label pc in
+
+      (match !fallthrough_label with
+      | Some prev_label ->
+          Hashtbl.add_multi out_edges ~key:prev_label ~data:label
+      | None -> ());
+
+      Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
+      fallthrough_label :=
+        match insn with
+        | Jump { target; condition } ->
+            (match target with
+            | Label l -> Hashtbl.add_multi out_edges ~key:label ~data:l
+            | Register _ -> ()
+            (* these should have already been replaced with jump label *)
+            | Int _ -> assert false);
+            Option.map condition ~f:(fun _ -> label)
+        | Exit -> None
+        | _ -> Some label);
+
+  (statements, out_edges)
+
+let make_blocks_from_graph statements out_edges =
   (* reverse mapping of out_edges *)
   let in_edges = Hashtbl.create (module String) in
   Hashtbl.iteri out_edges ~f:(fun ~key:label ~data:edges ->
@@ -181,35 +210,12 @@ let make_blocks statements out_edges =
       Block.set_branch block branch);
   blocks
 
-let make_top_level_block program pc_to_label =
-  let statements = Hashtbl.create (module String) in
-  let out_edges = Hashtbl.create (module String) in
-
-  let fallthrough_label = ref None in
-
-  List.iteri program.instructions ~f:(fun pc insn ->
-      let label = Hashtbl.find_exn pc_to_label pc in
-
-      (match !fallthrough_label with
-      | Some prev_label ->
-          Hashtbl.add_multi out_edges ~key:prev_label ~data:label
-      | None -> ());
-
-      Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
-      fallthrough_label :=
-        match insn with
-        | Jump { target; condition } ->
-            (match target with
-            | Label l -> Hashtbl.add_multi out_edges ~key:label ~data:l
-            | Register _ -> ()
-            (* these should have already been replaced with jump label *)
-            | Int _ -> assert false);
-            Option.map condition ~f:(fun _ -> label)
-        | Exit -> None
-        | _ -> Some label);
-
-  let blocks = make_blocks statements out_edges in
-  Option.bind (Hashtbl.find pc_to_label 0) ~f:(Hashtbl.find blocks)
+let make_top_level_blocks program pc_to_label =
+  let statements, out_edges = make_graph program pc_to_label in
+  let blocks = make_blocks_from_graph statements out_edges in
+  sorted_alist blocks ~compare:String.compare
+  |> List.map ~f:snd
+  |> List.filter ~f:Block.is_top_level
 
 let make_data (program : Program.t) offset_to_label =
   (* remove special heap base label for now. we handle it explicitly *)
@@ -238,9 +244,6 @@ let f program =
   let program = remove_jmp_int program in
   let program, pc_to_label = make_offset_to_label_mapping program Text in
   let program, data_to_label = make_offset_to_label_mapping program Data in
-  let blocks =
-    make_top_level_block program pc_to_label
-    |> Option.map ~f:List.return |> Option.value ~default:[]
-  in
+  let blocks = make_top_level_blocks program pc_to_label in
   let data = make_data program data_to_label in
-  { blocks; data }
+  Ir.create ~blocks ~data

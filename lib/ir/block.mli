@@ -18,5 +18,6 @@ val statements_rev : t -> Statement.t list
 val in_edges : t -> string list
 val branch : t -> branch option
 val set_branch : t -> branch option -> unit
+val is_top_level : t -> bool
 val dependencies : t -> Statement.variable list
 val references : t -> string list

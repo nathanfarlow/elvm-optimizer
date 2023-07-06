@@ -135,6 +135,15 @@ let%expect_test "set is lifted correctly" =
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
+let%expect_test "dump is lifted correctly to nop" =
+  ir [ Dump ] [] [] |> print;
+  [%expect
+    {|
+    ((blocks
+      (((label __L0) (statements (Nop)) (statements_rev (Nop)) (in_edges ())
+        (branch ()))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
+
 let%expect_test "many text labels are eliminated" =
   let address = { segment = Text; offset = 0 } in
   let labels = [ ("foo", address); ("baz", address); ("bar", address) ] in
@@ -305,7 +314,37 @@ let%expect_test "program with no instructions with text labels has just heap" =
   [%expect
     {| ((blocks ()) (data (((label __reserved_heap_base) (data Heap))))) |}]
 
-(* let%expect_test "program with two control flow graphs" =
-   let labels = [ ("a", { segment = Text; offset = 1 }) ] in
-   let instructions = [ Exit; Exit ] in
-   ir instructions labels [] |> print *)
+let%expect_test "program with two top blocks" =
+  let labels = [ ("a", { segment = Text; offset = 1 }) ] in
+  let instructions = [ Exit; Mov { dst = A; src = Register B }; Dump ] in
+  ir instructions labels [] |> print;
+  [%expect
+    {|
+    ((blocks
+      (((label __L0) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
+        (branch ()))
+       ((label __L1)
+        (statements ((Assign ((dst (Register A)) (src (Register B))))))
+        (statements_rev ((Assign ((dst (Register A)) (src (Register B))))))
+        (in_edges ())
+        (branch
+         ((Unconditional
+           ((label __L2) (statements (Nop)) (statements_rev (Nop))
+            (in_edges (__L1)) (branch ()))))))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
+
+let%expect_test "program with self loop" =
+  let labels = [ ("a", { segment = Text; offset = 0 }) ] in
+  let instructions = [ Jump { target = Label "a"; condition = None } ] in
+  let ir = ir instructions labels [] in
+  printf "%d" (List.length @@ Ir.blocks ir);
+  [%expect {| 1 |}];
+  let block = List.hd_exn @@ Ir.blocks ir in
+  printf "%s" (Block.label block);
+  [%expect {| __L0 |}];
+  let target = Block.branch block in
+  match target with
+  | Some (Unconditional target) ->
+      printf "%s" (Block.label target);
+      [%expect {| __L0 |}]
+  | _ -> assert false

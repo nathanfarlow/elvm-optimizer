@@ -8,4 +8,6 @@ type data_block = { label : string; data : data_type } [@@deriving sexp, equal]
 type t = { blocks : Block.t list; data : data_block list }
 [@@deriving sexp, equal]
 
-let optimize _ = failwith "unimplemented"
+let create ~blocks ~data = { blocks; data }
+let blocks t = t.blocks
+let data t = t.data

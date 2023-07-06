@@ -4,9 +4,9 @@ synopsis: "Optimize elvm IR"
 maintainer: ["Nathan Farlow"]
 authors: ["Nathan Farlow"]
 license: "MIT"
-homepage: "https://github.com/nathanfarlow/elvm-opt"
-doc: "https://github.com/nathanfarlow/elvm-opt"
-bug-reports: "https://github.com/nathanfarlow/elvm-opt/issues"
+homepage: "https://github.com/nathanfarlow/elvm-optimizer"
+doc: "https://github.com/nathanfarlow/elvm-optimizer"
+bug-reports: "https://github.com/nathanfarlow/elvm-optimizer/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.7"}
@@ -27,4 +27,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/nathanfarlow/elvm-opt.git"
+dev-repo: "git+https://github.com/nathanfarlow/elvm-optimizer.git"

@@ -21,6 +21,14 @@ let statements_rev t = t.statements_rev
 let in_edges t = t.in_edges
 let branch t = t.branch
 let set_branch t branch = t.branch <- branch
+
+let is_top_level t =
+  match t.in_edges with
+  | [] -> true
+  (* check for self reference *)
+  | [ in_label ] -> String.equal in_label t.label
+  | _ -> false
+
 let dependencies _ = failwith "dependencies not implemented"
 
 let references t =
