@@ -7,7 +7,7 @@ let print exp = print_s [%sexp (exp : Ir.t)]
 
 let elvm instructions labels data =
   let labels = Hashtbl.of_alist_exn (module String) labels in
-  Program.{ instructions; labels; data }
+  Program.create ~instructions ~labels ~data
 
 let ir instructions labels data = elvm instructions labels data |> Lift.f
 

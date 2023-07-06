@@ -52,7 +52,7 @@ let update_labels program ~f =
   let open Instruction in
   let f = Memo.general f in
   let labels = Hashtbl.create (module String) in
-  Hashtbl.iteri program.labels ~f:(fun ~key ~data ->
+  Hashtbl.iteri (Program.labels program) ~f:(fun ~key ~data ->
       Hashtbl.set labels ~key:(f key) ~data);
   let instructions =
     let update_imm_or_reg = function
@@ -63,7 +63,7 @@ let update_labels program ~f =
     let update_cond { comparison; args = { dst; src } } =
       { comparison; args = { dst; src = update_imm_or_reg src } }
     in
-    List.map program.instructions ~f:(function
+    List.map (Program.instructions program) ~f:(function
       | Mov { dst; src } -> Mov { dst; src = update_imm_or_reg src }
       | Add { dst; src } -> Add { dst; src = update_imm_or_reg src }
       | Sub { dst; src } -> Sub { dst; src = update_imm_or_reg src }
@@ -80,11 +80,11 @@ let update_labels program ~f =
       | Dump -> Dump)
   in
   let data =
-    List.map program.data ~f:(function
+    List.map (Program.data program) ~f:(function
       | Const x -> Program.Const x
       | Label l -> Label (f l))
   in
-  { instructions; data; labels }
+  Program.create ~instructions ~labels ~data
 
 let sorted_alist map ~compare =
   let alist = Hashtbl.to_alist map in
@@ -95,7 +95,7 @@ let fresh_label prefix program =
   let rec loop () =
     let label = sprintf "%s%d" prefix !i in
     incr i;
-    if Hashtbl.mem program.labels label then loop () else label
+    if Hashtbl.mem (Program.labels program) label then loop () else label
   in
   loop
 
@@ -104,25 +104,27 @@ let fresh_label prefix program =
 let remove_jmp_int program =
   let fresh = fresh_label "__L" program in
   let int_labels =
-    Array.init (List.length program.instructions) ~f:(fun _ -> fresh ())
+    Array.init
+      (List.length @@ Program.instructions program)
+      ~f:(fun _ -> fresh ())
   in
   let instructions =
-    List.map program.instructions ~f:(function
+    List.map (Program.instructions program) ~f:(function
       | Jump { target = Int n; condition } ->
           let target = Instruction.Label int_labels.(n) in
           Instruction.Jump { target; condition }
       | insn -> insn)
   in
-  let labels = Hashtbl.copy program.labels in
+  let labels = Hashtbl.copy (Program.labels program) in
   Array.iteri int_labels ~f:(fun i label ->
       Hashtbl.add_exn labels ~key:label ~data:{ segment = Text; offset = i });
-  { program with instructions; labels }
+  Program.create ~instructions ~labels ~data:(Program.data program)
 
 let rec make_offset_to_label_mapping program segment =
   let exception Program_changed of Program.t in
   let offset_to_label = Hashtbl.create (module Int) in
   try
-    Hashtbl.filter program.labels ~f:(fun { segment = s; _ } ->
+    Hashtbl.filter (Program.labels program) ~f:(fun { segment = s; _ } ->
         equal_segment s segment)
     (* sort to eliminate nondeterminism in which duplicate label we'll remove*)
     |> sorted_alist ~compare:String.compare
@@ -151,7 +153,7 @@ let make_graph program pc_to_label =
 
   let fallthrough_label = ref None in
 
-  List.iteri program.instructions ~f:(fun pc insn ->
+  List.iteri (Program.instructions program) ~f:(fun pc insn ->
       let label = Hashtbl.find_exn pc_to_label pc in
 
       (match !fallthrough_label with
@@ -223,7 +225,7 @@ let make_data (program : Program.t) offset_to_label =
       not (String.equal label Program.heap_label));
 
   let heap_entry = { label = Program.heap_label; data = Heap } in
-  if not @@ List.is_empty program.data then (
+  if not @@ List.is_empty (Program.data program) then (
     (* add a first data label if there isn't one *)
     let fresh_label = (fresh_label "__D" program) () in
     ignore @@ Hashtbl.add offset_to_label ~key:0 ~data:fresh_label;
@@ -232,7 +234,7 @@ let make_data (program : Program.t) offset_to_label =
       sorted_alist offset_to_label ~compare:Int.compare |> List.map ~f:snd
     in
     let chunks =
-      List.groupi program.data ~break:(fun i _ _ ->
+      List.groupi (Program.data program) ~break:(fun i _ _ ->
           Hashtbl.mem offset_to_label i)
       |> List.zip_exn sorted_labels_by_offset
       |> List.map ~f:(fun (label, data) -> { label; data = Chunk data })
