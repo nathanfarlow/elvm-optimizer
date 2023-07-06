@@ -72,11 +72,11 @@ let%test "getc is equal" =
   equal a b
 
 let%test "same conditions are equal" =
-  let a = Set { comparison = Eq; a = Const 0; b = Const 1 } in
-  let b = Set { comparison = Eq; a = Const 0; b = Const 1 } in
+  let a = Set { comparison = Eq; left = Const 0; right = Const 1 } in
+  let b = Set { comparison = Eq; left = Const 0; right = Const 1 } in
   equal a b
 
 let%test "different conditions are not equal" =
-  let a = Set { comparison = Eq; a = Const 0; b = Const 1 } in
-  let b = Set { comparison = Eq; a = Const 0; b = Const 2 } in
+  let a = Set { comparison = Eq; left = Const 0; right = Const 1 } in
+  let b = Set { comparison = Eq; left = Const 0; right = Const 2 } in
   not @@ equal a b

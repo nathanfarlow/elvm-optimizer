@@ -13,15 +13,15 @@ let lift_imm_or_reg imm_or_reg =
   | Label x -> Label x
 
 let lift_cond { comparison; args } =
-  let a = lift_imm_or_reg (Register args.dst) in
-  let b = lift_imm_or_reg args.src in
+  let left = lift_imm_or_reg (Register args.dst) in
+  let right = lift_imm_or_reg args.src in
   match comparison with
-  | Eq -> { comparison = Eq; a; b }
-  | Ne -> { comparison = Ne; a; b }
-  | Lt -> { comparison = Lt; a; b }
-  | Le -> { comparison = Le; a; b }
-  | Gt -> { comparison = Le; a = b; b = a }
-  | Ge -> { comparison = Lt; a = b; b = a }
+  | Eq -> { comparison = Eq; left; right }
+  | Ne -> { comparison = Ne; left; right }
+  | Lt -> { comparison = Lt; left; right }
+  | Le -> { comparison = Le; left; right }
+  | Gt -> { comparison = Le; left = right; right = left }
+  | Ge -> { comparison = Lt; left = right; right = left }
 
 let lift_insn = function
   | Mov { dst; src } ->
@@ -55,8 +55,7 @@ let update_labels program ~f =
   let f = Memo.general f in
   let labels = Hashtbl.create (module String) in
   Hashtbl.iteri program.labels ~f:(fun ~key ~data ->
-      let new_label = f key in
-      Hashtbl.set labels ~key:new_label ~data);
+      Hashtbl.set labels ~key:(f key) ~data);
   let instructions =
     let update_imm_or_reg = function
       | Int x -> Int x
@@ -149,25 +148,38 @@ let rec make_offset_to_label_mapping program segment =
   with Program_changed program -> make_offset_to_label_mapping program segment
 
 let make_blocks statements out_edges =
-  let make_block make_block label =
-    let statement = Hashtbl.find_exn statements label in
-    let edges = Hashtbl.find out_edges label in
-    let branch =
-      match edges with
-      | None -> None
-      | Some [ primary ] ->
-          Some { primary = make_block primary; secondary = None }
-      | Some [ secondary; primary ] ->
-          let primary = make_block primary in
-          let secondary = make_block secondary in
-          Some { primary; secondary = Some secondary }
-      | _ -> assert false
-    in
-    let block = { label; statements = [ statement ]; branch } in
-    block
-  in
-  let make_block = Memo.recursive ~hashable:String.hashable make_block in
-  Hashtbl.mapi statements ~f:(fun ~key:label ~data:_ -> make_block label)
+  (* reverse mapping of out_edges *)
+  let in_edges = Hashtbl.create (module String) in
+  Hashtbl.iteri out_edges ~f:(fun ~key:label ~data:edges ->
+      List.iter edges ~f:(fun edge ->
+          Hashtbl.add_multi in_edges ~key:edge ~data:label));
+
+  (* create blocks without branches *)
+  let blocks = Hashtbl.create (module String) in
+  Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
+      let in_edges = Hashtbl.find_multi in_edges label in
+      let block =
+        Block.create ~label ~statements:[ stmt ] ~in_edges ~branch:None
+      in
+      Hashtbl.add_exn blocks ~key:label ~data:block);
+
+  (* fill in branches *)
+  Hashtbl.iteri blocks ~f:(fun ~key:label ~data:block ->
+      let branch = Hashtbl.find out_edges label in
+      let branch =
+        match branch with
+        | None -> None
+        | Some [ target ] ->
+            let target = Hashtbl.find_exn blocks target in
+            Some (Unconditional target)
+        | Some [ true_; false_ ] ->
+            let true_ = Hashtbl.find_exn blocks true_ in
+            let false_ = Hashtbl.find_exn blocks false_ in
+            Some (Conditional { true_; false_ })
+        | _ -> assert false
+      in
+      Block.set_branch block branch);
+  blocks
 
 let make_top_level_block program pc_to_label =
   let statements = Hashtbl.create (module String) in

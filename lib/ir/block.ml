@@ -3,33 +3,24 @@ open! Core
 type t = {
   label : string;
   statements : Statement.t list;
-  branch : branch option;
+  statements_rev : Statement.t list;
+  in_edges : string list;
+  mutable branch : branch option;
 }
 [@@deriving sexp, equal]
 
-and branch = { primary : t; secondary : t option }
+and branch = Conditional of { true_ : t; false_ : t } | Unconditional of t
+[@@deriving sexp, equal]
 
-(* todo: test when there are 2 cfg *)
+let create ~label ~statements ~in_edges ~branch =
+  { label; statements; statements_rev = List.rev statements; in_edges; branch }
 
-(* optimization ideas:
-    simplify branch targets
-
-    simplify every statement
-
-    if this block has unconditional branch and is the only in edge to
-    target block, delete the jump instruction if one exists and
-    glue this block to the target, returning one block
-
-    dead code elimination:
-      remove nops
-      copy propagation
-      common subexpression elimination
-
-    swap 2 isntructions if they are same value and
-    one is more efficient to compute
-*)
-
-let optimize _t = failwith "not implemented"
+let label t = t.label
+let statements t = t.statements
+let statements_rev t = t.statements_rev
+let in_edges t = t.in_edges
+let branch t = t.branch
+let set_branch t branch = t.branch <- branch
 let dependencies _ = failwith "dependencies not implemented"
 
 let references t =

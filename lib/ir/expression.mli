@@ -1,6 +1,6 @@
 type comparison = Eq | Ne | Lt | Le [@@deriving sexp, equal]
 
-and condition = { comparison : comparison; a : t; b : t }
+and condition = { comparison : comparison; left : t; right : t }
 [@@deriving sexp, equal]
 
 and t =

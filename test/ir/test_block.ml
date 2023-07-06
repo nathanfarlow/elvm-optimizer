@@ -1,8 +1,11 @@
 open Core
-open Elvm_opt.Block
+open Elvm_opt
+open Block
 
 let print_refs refs = print_s [%sexp (refs : string list)]
-let of_statements statements = { label = "foo"; statements; branch = None }
+
+let of_statements statements =
+  Block.create ~label:"foo" ~statements ~in_edges:[] ~branch:None
 
 let%expect_test "references returns statement references" =
   of_statements

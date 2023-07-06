@@ -65,58 +65,72 @@ let%expect_test "sub simplifies to add for constants" =
 
 let%expect_test "set optimizes children" =
   optimize
-    (Set { comparison = Eq; a = Sub (Const 1, Const 1); b = Memory (Const 0) })
+    (Set
+       {
+         comparison = Eq;
+         left = Sub (Const 1, Const 1);
+         right = Memory (Const 0);
+       })
   |> print;
-  [%expect {| (Set ((comparison Eq) (a (Const 0)) (b (Memory (Const 0))))) |}];
+  [%expect {| (Set ((comparison Eq) (left (Const 0)) (right (Memory (Const 0))))) |}];
   optimize
-    (Set { comparison = Eq; a = Memory (Const 0); b = Sub (Const 1, Const 1) })
+    (Set
+       {
+         comparison = Eq;
+         left = Memory (Const 0);
+         right = Sub (Const 1, Const 1);
+       })
   |> print;
-  [%expect {| (Set ((comparison Eq) (a (Memory (Const 0))) (b (Const 0)))) |}]
+  [%expect {| (Set ((comparison Eq) (left (Memory (Const 0))) (right (Const 0)))) |}]
 
 let%expect_test "set optimizes eq when args are equal" =
-  optimize (Set { comparison = Eq; a = Memory (Const 0); b = Memory (Const 0) })
+  optimize
+    (Set { comparison = Eq; left = Memory (Const 0); right = Memory (Const 0) })
   |> print;
   [%expect {| (Const 1) |}]
 
 let%expect_test "set optimizes ne when args are equal" =
-  optimize (Set { comparison = Ne; a = Memory (Const 0); b = Memory (Const 0) })
+  optimize
+    (Set { comparison = Ne; left = Memory (Const 0); right = Memory (Const 0) })
   |> print;
   [%expect {| (Const 0) |}]
 
 let%expect_test "set optimizes lt when args are equal" =
-  optimize (Set { comparison = Lt; a = Memory (Const 0); b = Memory (Const 0) })
+  optimize
+    (Set { comparison = Lt; left = Memory (Const 0); right = Memory (Const 0) })
   |> print;
   [%expect {| (Const 0) |}]
 
 let%expect_test "set optimizes le when args are equal" =
-  optimize (Set { comparison = Le; a = Memory (Const 0); b = Memory (Const 0) })
+  optimize
+    (Set { comparison = Le; left = Memory (Const 0); right = Memory (Const 0) })
   |> print;
   [%expect {| (Const 1) |}]
 
 let%expect_test "set optimizes eq when args are const" =
-  optimize (Set { comparison = Eq; a = Const 0; b = Const 0 }) |> print;
+  optimize (Set { comparison = Eq; left = Const 0; right = Const 0 }) |> print;
   [%expect {| (Const 1) |}];
-  optimize (Set { comparison = Eq; a = Const 1; b = Const 0 }) |> print;
+  optimize (Set { comparison = Eq; left = Const 1; right = Const 0 }) |> print;
   [%expect {| (Const 0) |}]
 
 let%expect_test "set optimizes ne when args are const" =
-  optimize (Set { comparison = Ne; a = Const 0; b = Const 0 }) |> print;
+  optimize (Set { comparison = Ne; left = Const 0; right = Const 0 }) |> print;
   [%expect {| (Const 0) |}];
-  optimize (Set { comparison = Ne; a = Const 1; b = Const 0 }) |> print;
+  optimize (Set { comparison = Ne; left = Const 1; right = Const 0 }) |> print;
   [%expect {| (Const 1) |}]
 
 let%expect_test "set optimizes lt when args are const" =
-  optimize (Set { comparison = Lt; a = Const 0; b = Const 0 }) |> print;
+  optimize (Set { comparison = Lt; left = Const 0; right = Const 0 }) |> print;
   [%expect {| (Const 0) |}];
-  optimize (Set { comparison = Lt; a = Const 1; b = Const 0 }) |> print;
+  optimize (Set { comparison = Lt; left = Const 1; right = Const 0 }) |> print;
   [%expect {| (Const 0) |}];
-  optimize (Set { comparison = Lt; a = Const 0; b = Const 1 }) |> print;
+  optimize (Set { comparison = Lt; left = Const 0; right = Const 1 }) |> print;
   [%expect {| (Const 1) |}]
 
 let%expect_test "set optimizes le when args are const" =
-  optimize (Set { comparison = Le; a = Const 0; b = Const 0 }) |> print;
+  optimize (Set { comparison = Le; left = Const 0; right = Const 0 }) |> print;
   [%expect {| (Const 1) |}];
-  optimize (Set { comparison = Le; a = Const 1; b = Const 0 }) |> print;
+  optimize (Set { comparison = Le; left = Const 1; right = Const 0 }) |> print;
   [%expect {| (Const 0) |}];
-  optimize (Set { comparison = Le; a = Const 0; b = Const 1 }) |> print;
+  optimize (Set { comparison = Le; left = Const 0; right = Const 1 }) |> print;
   [%expect {| (Const 1) |}]

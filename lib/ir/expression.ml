@@ -2,7 +2,7 @@ open Core
 
 type comparison = Eq | Ne | Lt | Le [@@deriving sexp, equal]
 
-and condition = { comparison : comparison; a : t; b : t }
+and condition = { comparison : comparison; left : t; right : t }
 [@@deriving sexp, equal]
 
 and t =
@@ -39,8 +39,8 @@ let rec equal a b =
         List.for_all xs ~f:(fun x -> Option.is_some (find_match x))
   | Sub (x1, y1), Sub (x2, y2) -> equal x1 x2 && equal y1 y2
   | Getc, Getc -> true
-  | ( Set { comparison = c1; a = a1; b = b1 },
-      Set { comparison = c2; a = a2; b = b2 } ) ->
+  | ( Set { comparison = c1; left = a1; right = b1 },
+      Set { comparison = c2; left = a2; right = b2 } ) ->
       equal_comparison c1 c2 && equal a1 a2 && equal b1 b2
   | _ -> false
 
@@ -50,7 +50,7 @@ let references t =
     | Memory addr -> aux addr
     | Add xs -> List.concat_map xs ~f:aux
     | Sub (x, y) -> aux x @ aux y
-    | Set { a; b; _ } -> aux a @ aux b
+    | Set { left; right; _ } -> aux left @ aux right
     | _ -> []
   in
   List.dedup_and_sort ~compare:String.compare (aux t)

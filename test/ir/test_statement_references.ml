@@ -17,7 +17,8 @@ let%expect_test "jump has references" =
     (Jump
        {
          target = Label "foo";
-         condition = Some { comparison = Eq; a = Label "bar"; b = Label "baz" };
+         condition =
+           Some { comparison = Eq; left = Label "bar"; right = Label "baz" };
        })
   |> print;
   [%expect {| (bar baz foo) |}]

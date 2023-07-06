@@ -31,11 +31,15 @@ let%expect_test "optimizes jump target" =
   [%expect {| (Jump ((target (Const 2)) (condition ()))) |}]
 
 let%expect_test "always true conditional jump is changed to unconditional" =
-  let always_true = Some { comparison = Eq; a = ugly_exp; b = ugly_exp } in
+  let always_true =
+    Some { comparison = Eq; left = ugly_exp; right = ugly_exp }
+  in
   optimize (Jump { target = ugly_exp; condition = always_true }) |> print;
   [%expect {| (Jump ((target (Const 2)) (condition ()))) |}]
 
 let%expect_test "always false conditional jump is changed to nop" =
-  let always_false = Some { comparison = Ne; a = ugly_exp; b = ugly_exp } in
+  let always_false =
+    Some { comparison = Ne; left = ugly_exp; right = ugly_exp }
+  in
   optimize (Jump { target = ugly_exp; condition = always_false }) |> print;
   [%expect {| Nop |}]

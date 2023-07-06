@@ -13,7 +13,7 @@ let rec optimize' = function
   | Add xs -> optimize_add xs
   | Sub (a, b) -> optimize_sub a b
   | Getc -> (Getc, false)
-  | Set { comparison; a; b } -> optimize_set comparison a b
+  | Set { comparison; left; right } -> optimize_set comparison left right
 
 and optimize_add xs =
   (* flatten adds *)
@@ -57,27 +57,27 @@ and optimize_sub a b =
   | _ when equal a b -> (Const 0, true)
   | _ -> (Sub (a, b), a_changed || b_changed)
 
-and optimize_set comparison a b =
-  let a, a_changed = optimize' a in
-  let b, b_changed = optimize' b in
-  match (a, b) with
-  | Const a, Const b ->
-      let const_compare comparison a b =
+and optimize_set comparison left right =
+  let left, left_changed = optimize' left in
+  let right, right_changed = optimize' right in
+  match (left, right) with
+  | Const left, Const right ->
+      let const_compare comparison left right =
         match comparison with
-        | Eq -> a = b
-        | Ne -> a <> b
-        | Lt -> a < b
-        | Le -> a <= b
+        | Eq -> left = right
+        | Ne -> left <> right
+        | Lt -> left < right
+        | Le -> left <= right
       in
-      (Const (if const_compare comparison a b then 1 else 0), true)
+      (Const (if const_compare comparison left right then 1 else 0), true)
   | _ -> (
-      let equal = equal a b in
+      let equal = equal left right in
       match comparison with
       | Eq when equal -> (Const 1, true)
       | Ne when equal -> (Const 0, true)
       | Lt when equal -> (Const 0, true)
       | Le when equal -> (Const 1, true)
-      | _ -> (Set { comparison; a; b }, a_changed || b_changed))
+      | _ -> (Set { comparison; left; right }, left_changed || right_changed))
 
 let optimize _ = Optimizer_util.optimize_until_unchanging optimize'
 let create () = ()

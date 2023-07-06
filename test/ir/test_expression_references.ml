@@ -20,7 +20,7 @@ let%expect_test "sub has references" =
   [%expect {| (bar foo) |}]
 
 let%expect_test "set has references" =
-  references (Set { comparison = Eq; a = Label "foo"; b = Label "bar" })
+  references (Set { comparison = Eq; left = Label "foo"; right = Label "bar" })
   |> print;
   [%expect {| (bar foo) |}]
 
