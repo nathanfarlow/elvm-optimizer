@@ -1,20 +1,16 @@
 open Core
 open Program
-open Instruction
-open Expression
-open Statement
-open Block
-open Ir
 
 let lift_imm_or_reg imm_or_reg =
   match imm_or_reg with
-  | Int x -> Const x
+  | Instruction.Int x -> Expression.Const x
   | Register x -> Register x
   | Label x -> Label x
 
-let lift_cond { comparison; args } =
+let lift_cond Instruction.{ comparison; args } =
   let left = lift_imm_or_reg (Register args.dst) in
   let right = lift_imm_or_reg args.src in
+  let open Expression in
   match comparison with
   | Eq -> { comparison = Eq; left; right }
   | Ne -> { comparison = Ne; left; right }
@@ -23,7 +19,8 @@ let lift_cond { comparison; args } =
   | Gt -> { comparison = Le; left = right; right = left }
   | Ge -> { comparison = Lt; left = right; right = left }
 
-let lift_insn = function
+let lift_insn (insn : Instruction.t) : Statement.t =
+  match insn with
   | Mov { dst; src } ->
       let src = lift_imm_or_reg src in
       Assign { dst = Register dst; src }
@@ -52,6 +49,7 @@ let lift_insn = function
 
 (* f is a mapping from label -> new label *)
 let update_labels program ~f =
+  let open Instruction in
   let f = Memo.general f in
   let labels = Hashtbl.create (module String) in
   Hashtbl.iteri program.labels ~f:(fun ~key ~data ->
@@ -193,6 +191,7 @@ let make_blocks_from_graph statements out_edges =
       Hashtbl.add_exn blocks ~key:label ~data:block);
 
   (* fill in branches *)
+  let open Block in
   Hashtbl.iteri blocks ~f:(fun ~key:label ~data:block ->
       let branch = Hashtbl.find out_edges label in
       let branch =
@@ -218,6 +217,7 @@ let make_top_level_blocks program pc_to_label =
   |> List.filter ~f:Block.is_top_level
 
 let make_data (program : Program.t) offset_to_label =
+  let open Ir in
   (* remove special heap base label for now. we handle it explicitly *)
   Hashtbl.filter_inplace offset_to_label ~f:(fun label ->
       not (String.equal label Program.heap_label));
