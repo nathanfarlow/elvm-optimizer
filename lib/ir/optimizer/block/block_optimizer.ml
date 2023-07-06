@@ -5,25 +5,30 @@ module Make
 struct
   type t = Statement_optimizer.t
 
-  (* optimization ideas:
-      recursive simplify branch targets
+  (* optimization pipeline:
+      general:
+        recursive simplify branch targets
+        simplify every statement
 
-      simplify every statement
+      glue:
+        if this block has unconditional branch and is the only in edge to
+        target block, delete the jump instruction if one exists and
+        glue this block to the target, returning one block
 
-      if this block has unconditional branch and is the only in edge to
-      target block, delete the jump instruction if one exists and
-      glue this block to the target, returning one block
+      copy prop
 
-      dead code elimination:
+      common subexpr elim
+
+      dead code:
         remove nops
-        kill everything after exit
-        copy propagation
-        common subexpression elimination
+        remove everything after exit
+        remove dead assignments
 
-      swap 2 isntructions if they are same value and
-      one is more efficient to compute
+      advanced:
+        swap 2 isntructions if they are same value and
+        one is more efficient to compute
   *)
 
-  let optimize _ _ = failwith "TODO"
+  let optimize _ _ = failwith "unimplemented"
   let create = Fn.id
 end

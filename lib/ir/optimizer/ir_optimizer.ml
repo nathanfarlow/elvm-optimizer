@@ -8,6 +8,6 @@ struct
       delete blocks which have no references. keep children.
       delete data chunks which have no references *)
 
-  let optimize _ = failwith "TODO"
+  let optimize _ = failwith "unimplemented"
   let create block_opt = block_opt
 end

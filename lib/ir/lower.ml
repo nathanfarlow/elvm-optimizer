@@ -1,3 +1,3 @@
 open! Core
 
-let f _ = assert false
+let f _ = failwith "unimplemented"
