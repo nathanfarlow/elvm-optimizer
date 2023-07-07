@@ -7,7 +7,8 @@ module Make
 struct
   type t = Statement_optimizer.t
 
-  let optimize_statements stmt_optimizer (block : Block.M.t) =
+  let optimize_statements stmt_optimizer block =
+    let open Block.M in
     let statements, statement_changes =
       block.statements
       |> List.map ~f:(Statement_optimizer.optimize stmt_optimizer)
@@ -16,7 +17,8 @@ struct
     block.statements <- statements;
     List.exists statement_changes ~f:Fn.id
 
-  let correct_branch (block : Block.M.t) =
+  let correct_branch block =
+    let open Block.M in
     let maybe_jump = List.last block.statements in
     match (maybe_jump, block.branch) with
     (* if a conditional jump statement was simplified to an unconditional
