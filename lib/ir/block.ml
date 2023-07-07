@@ -5,24 +5,39 @@ module Edge = struct
   type t = { target : string; type_ : type_ } [@@deriving sexp, equal]
 end
 
-type t = {
-  label : string;
-  statements : Statement.t list;
-  in_edges : Edge.t list;
-  mutable branch : branch option;
-}
-[@@deriving sexp, equal, fields]
+module rec M : sig
+  type t = {
+    label : string;
+    mutable statements : Statement.t list;
+    mutable in_edges : Edge.t list;
+    mutable branch : Branch.t option;
+  }
+  [@@deriving sexp, equal]
+end = struct
+  type t = {
+    label : string;
+    mutable statements : Statement.t list;
+    mutable in_edges : Edge.t list;
+    mutable branch : Branch.t option;
+  }
+  [@@deriving sexp, equal]
+end
 
-and branch =
-  | Conditional_jump of { true_ : t; false_ : t }
-  | Unconditional_jump of t
-  | Fallthrough of t
-[@@deriving sexp, equal]
+and Branch : sig
+  type t =
+    | Conditional_jump of { true_ : M.t; false_ : M.t }
+    | Unconditional_jump of M.t
+    | Fallthrough of M.t
+  [@@deriving sexp, equal]
+end = struct
+  type t =
+    | Conditional_jump of { true_ : M.t; false_ : M.t }
+    | Unconditional_jump of M.t
+    | Fallthrough of M.t
+  [@@deriving sexp, equal]
+end
 
-let create ~label ~statements ~in_edges ~branch =
-  { label; statements; in_edges; branch }
-
-let set_branch t branch = t.branch <- branch
+open M
 
 let is_top_level t =
   match t.in_edges with

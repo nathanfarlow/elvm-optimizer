@@ -195,12 +195,12 @@ let make_blocks_from_graph statements
   Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
       let in_edges = Hashtbl.find_multi in_edges label in
       let block =
-        Block.create ~label ~statements:[ stmt ] ~in_edges ~branch:None
+        Block.M.{ label; statements = [ stmt ]; in_edges; branch = None }
       in
       Hashtbl.add_exn blocks ~key:label ~data:block);
 
   (* fill in branches *)
-  let open Block in
+  let module B = Block.Branch in
   Hashtbl.iteri blocks ~f:(fun ~key:label ~data:block ->
       let branch = Hashtbl.find out_edges label in
       let branch =
@@ -208,10 +208,10 @@ let make_blocks_from_graph statements
         | None -> None
         | Some [ { target; type_ = Fallthrough } ] ->
             let target = Hashtbl.find_exn blocks target in
-            Some (Fallthrough target)
+            Some (B.Fallthrough target)
         | Some [ { target; type_ = Jump } ] ->
             let target = Hashtbl.find_exn blocks target in
-            Some (Unconditional_jump target)
+            Some (B.Unconditional_jump target)
         | Some
             [
               { target = false_; type_ = Fallthrough };
@@ -219,10 +219,10 @@ let make_blocks_from_graph statements
             ] ->
             let true_ = Hashtbl.find_exn blocks true_ in
             let false_ = Hashtbl.find_exn blocks false_ in
-            Some (Conditional_jump { true_; false_ })
+            Some (B.Conditional_jump { true_; false_ })
         | _ -> assert false
       in
-      Block.set_branch block branch);
+      block.branch <- branch);
   blocks
 
 let make_top_level_blocks program pc_to_label =

@@ -307,11 +307,11 @@ let%expect_test "program with self loop" =
   printf "%d" (List.length @@ Ir.blocks ir);
   [%expect {| 1 |}];
   let block = List.hd_exn @@ Ir.blocks ir in
-  printf "%s" (Block.label block);
+  printf "%s" block.label;
   [%expect {| __L0 |}];
-  let target = Block.branch block in
+  let target = block.branch in
   match target with
   | Some (Unconditional_jump target) ->
-      printf "%s" (Block.label target);
+      printf "%s" target.label;
       [%expect {| __L0 |}]
   | _ -> assert false

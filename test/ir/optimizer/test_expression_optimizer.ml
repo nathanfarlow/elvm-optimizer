@@ -1,9 +1,9 @@
 open Core
-open Elvm_opt.Expression
+open Elvm_opt
 
-let optimizer = Elvm_opt.Expression_optimizer.create ()
-let print exp = print_s [%sexp (exp : t)]
-let optimize exp = Elvm_opt.Expression_optimizer.optimize optimizer exp |> fst
+let optimizer = Expression_optimizer.create ()
+let print exp = print_s [%sexp (exp : Expression.t)]
+let optimize exp = Expression_optimizer.optimize optimizer exp |> fst
 
 let%expect_test "const remains same" =
   optimize (Const 0) |> print;
@@ -72,7 +72,8 @@ let%expect_test "set optimizes children" =
          right = Memory (Const 0);
        })
   |> print;
-  [%expect {| (Set ((comparison Eq) (left (Const 0)) (right (Memory (Const 0))))) |}];
+  [%expect
+    {| (Set ((comparison Eq) (left (Const 0)) (right (Memory (Const 0))))) |}];
   optimize
     (Set
        {
@@ -81,7 +82,8 @@ let%expect_test "set optimizes children" =
          right = Sub (Const 1, Const 1);
        })
   |> print;
-  [%expect {| (Set ((comparison Eq) (left (Memory (Const 0))) (right (Const 0)))) |}]
+  [%expect
+    {| (Set ((comparison Eq) (left (Memory (Const 0))) (right (Const 0)))) |}]
 
 let%expect_test "set optimizes eq when args are equal" =
   optimize

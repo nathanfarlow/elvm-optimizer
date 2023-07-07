@@ -35,11 +35,10 @@ struct
     let in_edges = Block.in_edges block in
     let statements, stmts_changed = optimize_statements stmt_optimizer block in
     let branch, branch_corrected = correct_branch block in
-    let block = Block.create ~label ~statements ~in_edges ~branch in
-    let block, branch_optimized =
-      Block_optimizer_util.block_with_optimized_branch (optimize stmt_optimizer)
-        block
+    let branch, branch_optimized =
+      Block_optimizer_util.optimize_branch (optimize stmt_optimizer) branch
     in
+    let block = Block.create ~label ~statements ~in_edges ~branch in
     (block, stmts_changed || branch_corrected || branch_optimized)
 
   let create = Fn.id

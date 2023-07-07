@@ -1,30 +1,30 @@
 open! Core
 
-type t [@@deriving sexp, equal]
-
 module Edge : sig
   type type_ = Jump | Fallthrough [@@deriving sexp, equal]
   type t = { target : string; type_ : type_ } [@@deriving sexp, equal]
 end
 
-type branch =
-  | Conditional_jump of { true_ : t; false_ : t }
-  | Unconditional_jump of t
-  | Fallthrough of t
-[@@deriving sexp, equal]
+module rec M : sig
+  type t = {
+    label : string;
+    mutable statements : Statement.t list;
+    mutable in_edges : Edge.t list;
+    mutable branch : Branch.t option;
+  }
+  [@@deriving sexp, equal]
+end
 
-val create :
-  label:string ->
-  statements:Statement.t list ->
-  in_edges:Edge.t list ->
-  branch:branch option ->
-  t
+and Branch : sig
+  type t =
+    | Conditional_jump of { true_ : M.t; false_ : M.t }
+    | Unconditional_jump of M.t
+    | Fallthrough of M.t
+  [@@deriving sexp, equal]
+end
 
-val label : t -> string
-val statements : t -> Statement.t list
-val in_edges : t -> Edge.t list
-val branch : t -> branch option
-val set_branch : t -> branch option -> unit
+open M
+
 val is_top_level : t -> bool
 val dependencies : t -> Statement.variable list
 val references : t -> string list
