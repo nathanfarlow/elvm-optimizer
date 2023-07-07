@@ -8,10 +8,9 @@ struct
   type t = { general_optimizer : General_optimizer.t }
 
   (* optimization pipeline:
+      general:
+
       glue:
-        if this block has unconditional branch and is the only in edge to
-        target block, delete the jump instruction if one exists and
-        glue this block to the target, returning one block
 
       copy prop
 
@@ -44,17 +43,21 @@ struct
     in
     (block, block_changed || branch_changed)
 
-  and optimize_branch _t _block = assert false
-  (* let open Block in
-     match Block.branch block with
-     | None -> (None, false)
-     | Some (Unconditional target) ->
-         let target, target_changed = optimize' t target in
-         (Some (Unconditional target), target_changed)
-     | Some (Conditional { true_; false_ }) ->
-         let true_, true_changed = optimize' t true_ in
-         let false_, false_changed = optimize' t false_ in
-         (Some (Conditional { true_; false_ }), true_changed || false_changed) *)
+  and optimize_branch t block =
+    let open Block in
+    match Block.branch block with
+    | None -> (None, false)
+    | Some (Unconditional_jump target) ->
+        let target, target_changed = optimize' t target in
+        (Some (Unconditional_jump target), target_changed)
+    | Some (Fallthrough target) ->
+        let target, target_changed = optimize' t target in
+        (Some (Fallthrough target), target_changed)
+    | Some (Conditional_jump { true_; false_ }) ->
+        let true_, true_changed = optimize' t true_ in
+        let false_, false_changed = optimize' t false_ in
+        ( Some (Conditional_jump { true_; false_ }),
+          true_changed || false_changed )
 
   let optimize stmt_optimizer block =
     Optimizer_util.optimize_until_unchanging (optimize' stmt_optimizer) block
