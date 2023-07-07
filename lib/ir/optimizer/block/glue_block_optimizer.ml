@@ -13,7 +13,32 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
     Block.create ~label:(Block.label block) ~statements:(Block.statements block)
       ~in_edges ~branch:(Block.branch block)
 
-  let change_jump_to_fallthrough block target =
+  let rec optimize ref_provider block =
+    Optimizer_util.optimize_until_unchanging (optimize' ref_provider) block
+
+  and optimize' ref_provider block =
+    match Block.branch block with
+    | Some (Unconditional_jump target)
+    (* if this block jumps unconditionally to target and target
+       does not have any fallthrough in edges, then we can change
+       the jump to fallthrough to target, saving a jump instruction *)
+      when not @@ has_fallthrough_in_edge target ->
+        let target, _ = optimize ref_provider target in
+        (change_jump_to_fallthrough block target, true)
+    | Some (Fallthrough target)
+    (* if there are no references to target, it implies that target has only
+       one in-edge, which is this block. As a result, we can concatenate
+       these blocks *)
+      when not
+           @@ Reference_provider.has_reference ref_provider (Block.label target)
+      ->
+        let target, _ = optimize ref_provider target in
+        (concatenate block target, true)
+    | _ ->
+        Block_optimizer_util.block_with_optimized_branch (optimize ref_provider)
+          block
+
+  and change_jump_to_fallthrough block target =
     let label = Block.label block in
     let target =
       (* update the target's in-edge for this block to be a fallthrough edge *)
@@ -29,7 +54,7 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
     let in_edges = Block.in_edges block in
     Block.create ~label ~statements ~in_edges ~branch
 
-  let concatenate block target =
+  and concatenate block target =
     let label = Block.label block in
     let statements = Block.statements block @ Block.statements target in
     let in_edges = Block.in_edges block in
@@ -55,27 +80,6 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
       | None -> None
     in
     Block.create ~label ~statements ~in_edges ~branch
-
-  let optimize' ref_provider block =
-    match Block.branch block with
-    | Some (Unconditional_jump target)
-    (* if this block jumps unconditionally to target and target
-       does not have any fallthrough in edges, then we can change
-       the jump to fallthrough to target, saving a jump instruction *)
-      when not @@ has_fallthrough_in_edge target ->
-        (change_jump_to_fallthrough block target, true)
-    | Some (Fallthrough target)
-    (* if there are no references to target, it implies that target has only
-       one in-edge, which is this block. As a result, we can concatenate
-       these blocks *)
-      when not
-           @@ Reference_provider.has_reference ref_provider (Block.label target)
-      ->
-        (concatenate block target, true)
-    | _ -> (block, false)
-
-  let optimize ref_provider block =
-    Optimizer_util.optimize_until_unchanging (optimize' ref_provider) block
 
   let create = Fn.id
 end

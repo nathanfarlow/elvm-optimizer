@@ -27,16 +27,20 @@ struct
         (Some (Block.Unconditional_jump true_), true)
     | _ -> (branch, false)
 
-  let optimize' stmt_optimizer block =
+  let rec optimize stmt_optimizer block =
+    Optimizer_util.optimize_until_unchanging (optimize' stmt_optimizer) block
+
+  and optimize' stmt_optimizer block =
     let label = Block.label block in
     let in_edges = Block.in_edges block in
     let statements, stmts_changed = optimize_statements stmt_optimizer block in
-    let branch, branch_changed = correct_branch block in
+    let branch, branch_corrected = correct_branch block in
     let block = Block.create ~label ~statements ~in_edges ~branch in
-    (block, stmts_changed || branch_changed)
-
-  let optimize stmt_optimizer block =
-    Optimizer_util.optimize_until_unchanging (optimize' stmt_optimizer) block
+    let block, branch_optimized =
+      Block_optimizer_util.block_with_optimized_branch (optimize stmt_optimizer)
+        block
+    in
+    (block, stmts_changed || branch_corrected || branch_optimized)
 
   let create = Fn.id
 end

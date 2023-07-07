@@ -3,24 +3,26 @@ open Expression
 
 type t = unit
 
-let rec optimize' = function
+let rec optimize t = Optimizer_util.optimize_until_unchanging (optimize' t)
+
+and optimize' t = function
   | Const _ as e -> (e, false)
   | Label _ as e -> (e, false)
   | Register _ as e -> (e, false)
   | Memory addr ->
-      let addr, did_change = optimize' addr in
+      let addr, did_change = optimize t addr in
       (Memory addr, did_change)
-  | Add xs -> optimize_add xs
-  | Sub (a, b) -> optimize_sub a b
+  | Add xs -> optimize_add t xs
+  | Sub (a, b) -> optimize_sub t a b
   | Getc -> (Getc, false)
-  | Set { comparison; left; right } -> optimize_set comparison left right
+  | Set { comparison; left; right } -> optimize_set t comparison left right
 
-and optimize_add xs =
+and optimize_add t xs =
   (* flatten adds *)
   let xs = List.concat_map xs ~f:(function Add xs -> xs | x -> [ x ]) in
   match xs with
   | [] -> (Const 0, true)
-  | [ x ] -> optimize' x
+  | [ x ] -> optimize t x
   | _ ->
       let consts, non_consts =
         List.partition_tf ~f:(function Const _ -> true | _ -> false) xs
@@ -38,7 +40,7 @@ and optimize_add xs =
       in
       (* optimize non constants *)
       let non_consts, non_consts_changes =
-        List.map non_consts ~f:optimize' |> List.unzip
+        List.map non_consts ~f:(optimize t) |> List.unzip
       in
       let did_others_change = List.exists non_consts_changes ~f:Fn.id in
       let optimized_terms =
@@ -47,9 +49,9 @@ and optimize_add xs =
       in
       (optimized_terms, did_others_change || did_constants_change)
 
-and optimize_sub a b =
-  let a, a_changed = optimize' a in
-  let b, b_changed = optimize' b in
+and optimize_sub t a b =
+  let a, a_changed = optimize t a in
+  let b, b_changed = optimize t b in
   match (a, b) with
   | Const a, Const b -> (Const (a - b), true)
   | a, Const b when b = 0 -> (a, true)
@@ -57,9 +59,9 @@ and optimize_sub a b =
   | _ when equal a b -> (Const 0, true)
   | _ -> (Sub (a, b), a_changed || b_changed)
 
-and optimize_set comparison left right =
-  let left, left_changed = optimize' left in
-  let right, right_changed = optimize' right in
+and optimize_set t comparison left right =
+  let left, left_changed = optimize t left in
+  let right, right_changed = optimize t right in
   match (left, right) with
   | Const left, Const right ->
       let const_compare comparison left right =
@@ -79,5 +81,4 @@ and optimize_set comparison left right =
       | Le when equal -> (Const 1, true)
       | _ -> (Set { comparison; left; right }, left_changed || right_changed))
 
-let optimize _ = Optimizer_util.optimize_until_unchanging optimize'
 let create () = ()

@@ -32,9 +32,9 @@ struct
     | Exit -> (Exit, false)
     | Nop -> (Nop, false)
 
-  let optimize expression_optimizer t =
+  let optimize expression_optimizer stmt =
     let optimizer_expr = Expression_optimizer.optimize expression_optimizer in
-    Optimizer_util.optimize_until_unchanging (optimize' optimizer_expr) t
+    Optimizer_util.optimize_until_unchanging (optimize' optimizer_expr) stmt
 
   let create = Fn.id
 end
