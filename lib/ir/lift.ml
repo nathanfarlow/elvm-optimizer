@@ -153,12 +153,13 @@ let make_graph program pc_to_label =
   let fallthrough_label = ref None in
 
   List.iteri (Program.instructions program) ~f:(fun pc insn ->
+      let module B = Block.M in
       let label = Hashtbl.find_exn pc_to_label pc in
 
       (match !fallthrough_label with
       | Some prev_label ->
           Hashtbl.add_multi out_edges ~key:prev_label
-            ~data:Block.Edge.{ target = label; type_ = Fallthrough }
+            ~data:B.Edge.{ target = label; type_ = Fallthrough }
       | None -> ());
 
       Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
@@ -168,7 +169,7 @@ let make_graph program pc_to_label =
             (match target with
             | Label target ->
                 Hashtbl.add_multi out_edges ~key:label
-                  ~data:Block.Edge.{ target; type_ = Jump }
+                  ~data:B.Edge.{ target; type_ = Jump }
             | Register _ -> ()
             (* these should have already been replaced with jump label *)
             | Int _ -> assert false);
@@ -178,29 +179,26 @@ let make_graph program pc_to_label =
 
   (statements, out_edges)
 
-let make_blocks_from_graph statements
-    (out_edges : (string, Block.Edge.t list) Hashtbl.t) =
+let make_blocks_from_graph statements out_edges =
+  let module B = Block.M in
   (* reverse mapping of out_edges *)
   let in_edges = Hashtbl.create (module String) in
   (* for each block*)
   Hashtbl.iteri out_edges ~f:(fun ~key:src_label ~data:out_edges ->
       (* for each out edge in that block *)
-      List.iter out_edges ~f:(fun { target; type_ } ->
+      List.iter out_edges ~f:(fun B.Edge.{ target; type_ } ->
           (* append this edge to the dst block's in labels *)
           Hashtbl.add_multi in_edges ~key:target
-            ~data:Block.Edge.{ target = src_label; type_ }));
+            ~data:B.Edge.{ target = src_label; type_ }));
 
   (* create blocks without branches *)
   let blocks = Hashtbl.create (module String) in
   Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
       let in_edges = Hashtbl.find_multi in_edges label in
-      let block =
-        Block.M.{ label; statements = [ stmt ]; in_edges; branch = None }
-      in
+      let block = B.{ label; statements = [ stmt ]; in_edges; branch = None } in
       Hashtbl.add_exn blocks ~key:label ~data:block);
 
   (* fill in branches *)
-  let module B = Block.Branch in
   Hashtbl.iteri blocks ~f:(fun ~key:label ~data:block ->
       let branch = Hashtbl.find out_edges label in
       let branch =
@@ -208,10 +206,10 @@ let make_blocks_from_graph statements
         | None -> None
         | Some [ { target; type_ = Fallthrough } ] ->
             let target = Hashtbl.find_exn blocks target in
-            Some (B.Fallthrough target)
+            Some (B.Branch.Fallthrough target)
         | Some [ { target; type_ = Jump } ] ->
             let target = Hashtbl.find_exn blocks target in
-            Some (B.Unconditional_jump target)
+            Some (B.Branch.Unconditional_jump target)
         | Some
             [
               { target = false_; type_ = Fallthrough };
@@ -219,7 +217,7 @@ let make_blocks_from_graph statements
             ] ->
             let true_ = Hashtbl.find_exn blocks true_ in
             let false_ = Hashtbl.find_exn blocks false_ in
-            Some (B.Conditional_jump { true_; false_ })
+            Some (B.Branch.Conditional_jump { true_; false_ })
         | _ -> assert false
       in
       block.branch <- branch);
@@ -230,7 +228,7 @@ let make_top_level_blocks program pc_to_label =
   let blocks = make_blocks_from_graph statements out_edges in
   sorted_alist blocks ~compare:String.compare
   |> List.map ~f:snd
-  |> List.filter ~f:Block.is_top_level
+  |> List.filter ~f:Block.M.is_top_level
 
 let make_data (program : Program.t) offset_to_label =
   let open Ir in

@@ -38,14 +38,15 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
 
   and change_jump_to_fallthrough block target =
     (* update the target's in-edge for this block to be a fallthrough edge *)
+    let module B = Block.M in
     target.in_edges <-
       List.map target.in_edges ~f:(function
         | { target; type_ = Fallthrough } as e
           when String.equal target block.label ->
-            Block.Edge.{ e with type_ = Fallthrough }
+            B.Edge.{ e with type_ = Fallthrough }
         | _ as e -> e);
     (* update this block's branch to be fallthrough to target *)
-    target.branch <- Some (Block.Branch.Fallthrough target);
+    target.branch <- Some (B.Branch.Fallthrough target);
     (* drop the jump instruction *)
     block.statements <- block.statements |> List.drop_last_exn
 
@@ -59,13 +60,13 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
         List.map targets_target.in_edges ~f:(function
           | { target = targets_target; _ } as e
             when String.equal targets_target target.label ->
-              Block.Edge.{ e with target = block.label }
+              Edge.{ e with target = block.label }
           | _ as e -> e)
     in
     match target.branch with
     | Some (Unconditional_jump target) ->
         update_in_edges target;
-        block.branch <- Some (Block.Branch.Unconditional_jump target)
+        block.branch <- Some (Branch.Unconditional_jump target)
     | Some (Conditional_jump { true_; false_ }) ->
         update_in_edges true_;
         update_in_edges false_;

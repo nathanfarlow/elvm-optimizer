@@ -25,7 +25,7 @@ struct
        jump, correct the branch to the unconditionally true branch *)
     | ( Some (Statement.Jump { condition = None; _ }),
         Some (Conditional_jump { true_; _ }) ) ->
-        block.branch <- Some (Block.Branch.Unconditional_jump true_);
+        block.branch <- Some (Branch.Unconditional_jump true_);
         true
     | _ -> false
 
