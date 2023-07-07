@@ -1,32 +1,34 @@
 open Core
 
+module Edge = struct
+  type type_ = Jump | Fallthrough [@@deriving sexp, equal]
+  type t = { target : string; type_ : type_ } [@@deriving sexp, equal]
+end
+
 type t = {
   label : string;
   statements : Statement.t list;
-  statements_rev : Statement.t list;
-  in_edges : string list;
+  in_edges : Edge.t list;
   mutable branch : branch option;
 }
-[@@deriving sexp, equal]
+[@@deriving sexp, equal, fields]
 
-and branch = Conditional of { true_ : t; false_ : t } | Unconditional of t
+and branch =
+  | Conditional_jump of { true_ : t; false_ : t }
+  | Unconditional_jump of t
+  | Fallthrough of t
 [@@deriving sexp, equal]
 
 let create ~label ~statements ~in_edges ~branch =
-  { label; statements; statements_rev = List.rev statements; in_edges; branch }
+  { label; statements; in_edges; branch }
 
-let label t = t.label
-let statements t = t.statements
-let statements_rev t = t.statements_rev
-let in_edges t = t.in_edges
-let branch t = t.branch
 let set_branch t branch = t.branch <- branch
 
 let is_top_level t =
   match t.in_edges with
   | [] -> true
   (* check for self reference *)
-  | [ in_label ] -> String.equal in_label t.label
+  | [ { target; type_ = Jump } ] -> String.equal target t.label
   | _ -> false
 
 let dependencies _ = failwith "dependencies not implemented"

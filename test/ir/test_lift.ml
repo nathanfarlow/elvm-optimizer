@@ -1,7 +1,7 @@
-open Core
-open Elvm_opt
-open Instruction
-open Program
+open! Core
+open! Elvm_opt
+open! Instruction
+open! Program
 
 let print exp = print_s [%sexp (exp : Ir.t)]
 
@@ -23,7 +23,6 @@ let%expect_test "mov is lifted correctly" =
     ((blocks
       (((label __L0)
         (statements ((Assign ((dst (Register A)) (src (Register A))))))
-        (statements_rev ((Assign ((dst (Register A)) (src (Register A))))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
@@ -34,8 +33,6 @@ let%expect_test "add is lifted correctly" =
     ((blocks
       (((label __L0)
         (statements
-         ((Assign ((dst (Register A)) (src (Add ((Register A) (Label label))))))))
-        (statements_rev
          ((Assign ((dst (Register A)) (src (Add ((Register A) (Label label))))))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
@@ -48,8 +45,6 @@ let%expect_test "sub is lifted correctly" =
       (((label __L0)
         (statements
          ((Assign ((dst (Register A)) (src (Sub (Register A) (Const 5)))))))
-        (statements_rev
-         ((Assign ((dst (Register A)) (src (Sub (Register A) (Const 5)))))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
@@ -60,8 +55,6 @@ let%expect_test "load is lifted correctly" =
     ((blocks
       (((label __L0)
         (statements ((Assign ((dst (Register A)) (src (Memory (Register B)))))))
-        (statements_rev
-         ((Assign ((dst (Register A)) (src (Memory (Register B)))))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
@@ -72,8 +65,6 @@ let%expect_test "store is lifted correctly" =
     ((blocks
       (((label __L0)
         (statements ((Assign ((dst (Memory (Register A))) (src (Register B))))))
-        (statements_rev
-         ((Assign ((dst (Memory (Register A))) (src (Register B))))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
@@ -82,8 +73,8 @@ let%expect_test "putc is lifted correctly" =
   [%expect
     {|
     ((blocks
-      (((label __L0) (statements ((Putc (Register A))))
-        (statements_rev ((Putc (Register A)))) (in_edges ()) (branch ()))))
+      (((label __L0) (statements ((Putc (Register A)))) (in_edges ())
+        (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "getc is lifted correctly" =
@@ -92,18 +83,15 @@ let%expect_test "getc is lifted correctly" =
     {|
     ((blocks
       (((label __L0) (statements ((Assign ((dst (Register A)) (src Getc)))))
-        (statements_rev ((Assign ((dst (Register A)) (src Getc))))) (in_edges ())
-        (branch ()))))
+        (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "exit is lifted correctly" =
   ir [ Exit ] [] [] |> print;
   [%expect
     {|
-      ((blocks
-        (((label __L0) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
-          (branch ()))))
-       (data (((label __reserved_heap_base) (data Heap))))) |}]
+    ((blocks (((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "jump is lifted correctly" =
   ir [ Jump { target = Register A; condition = None } ] [] [] |> print;
@@ -111,7 +99,6 @@ let%expect_test "jump is lifted correctly" =
     {|
     ((blocks
       (((label __L0) (statements ((Jump ((target (Register A)) (condition ())))))
-        (statements_rev ((Jump ((target (Register A)) (condition ())))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
@@ -127,11 +114,6 @@ let%expect_test "set is lifted correctly" =
            ((dst (Register B))
             (src
              (Set ((comparison Eq) (left (Register B)) (right (Register A)))))))))
-        (statements_rev
-         ((Assign
-           ((dst (Register B))
-            (src
-             (Set ((comparison Eq) (left (Register B)) (right (Register A)))))))))
         (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
@@ -139,9 +121,7 @@ let%expect_test "dump is lifted correctly to nop" =
   ir [ Dump ] [] [] |> print;
   [%expect
     {|
-    ((blocks
-      (((label __L0) (statements (Nop)) (statements_rev (Nop)) (in_edges ())
-        (branch ()))))
+    ((blocks (((label __L0) (statements (Nop)) (in_edges ()) (branch ()))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "many text labels are eliminated" =
@@ -151,10 +131,8 @@ let%expect_test "many text labels are eliminated" =
   ir instructions labels [] |> print;
   [%expect
     {|
-      ((blocks
-        (((label __L0) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
-          (branch ()))))
-       (data (((label __reserved_heap_base) (data Heap))))) |}]
+    ((blocks (((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "main is not clobbered" =
   let labels = [ ("main", { segment = Text; offset = 0 }) ] in
@@ -162,10 +140,8 @@ let%expect_test "main is not clobbered" =
   ir instructions labels [] |> print;
   [%expect
     {|
-      ((blocks
-        (((label main) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
-          (branch ()))))
-       (data (((label __reserved_heap_base) (data Heap))))) |}]
+    ((blocks (((label main) (statements (Exit)) (in_edges ()) (branch ()))))
+     (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "fallthrough branches are added for each instruction" =
   let instructions = [ Mov { dst = A; src = Register A }; Exit ] in
@@ -175,12 +151,11 @@ let%expect_test "fallthrough branches are added for each instruction" =
     ((blocks
       (((label __L0)
         (statements ((Assign ((dst (Register A)) (src (Register A))))))
-        (statements_rev ((Assign ((dst (Register A)) (src (Register A))))))
         (in_edges ())
         (branch
-         ((Unconditional
-           ((label __L1) (statements (Exit)) (statements_rev (Exit))
-            (in_edges (__L0)) (branch ()))))))))
+         ((Fallthrough
+           ((label __L1) (statements (Exit))
+            (in_edges (((target __L0) (type_ Fallthrough)))) (branch ()))))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "unconditional branch has edge to target" =
@@ -193,12 +168,11 @@ let%expect_test "unconditional branch has edge to target" =
     {|
     ((blocks
       (((label __L0) (statements ((Jump ((target (Label __L1)) (condition ())))))
-        (statements_rev ((Jump ((target (Label __L1)) (condition ())))))
         (in_edges ())
         (branch
-         ((Unconditional
-           ((label __L1) (statements (Exit)) (statements_rev (Exit))
-            (in_edges (__L0)) (branch ()))))))))
+         ((Unconditional_jump
+           ((label __L1) (statements (Exit))
+            (in_edges (((target __L0) (type_ Jump)))) (branch ()))))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "conditional branch have edges to targets" =
@@ -225,24 +199,24 @@ let%expect_test "conditional branch have edges to targets" =
            ((target (Label __L2))
             (condition
              (((comparison Eq) (left (Register A)) (right (Register B)))))))))
-        (statements_rev
-         ((Jump
-           ((target (Label __L2))
-            (condition
-             (((comparison Eq) (left (Register A)) (right (Register B)))))))))
         (in_edges ())
         (branch
-         ((Conditional
+         ((Conditional_jump
            (true_
-            ((label __L1) (statements ((Putc (Register A))))
-             (statements_rev ((Putc (Register A)))) (in_edges (__L0))
-             (branch
-              ((Unconditional
-                ((label __L2) (statements (Exit)) (statements_rev (Exit))
-                 (in_edges (__L1 __L0)) (branch ())))))))
+            ((label __L2) (statements (Exit))
+             (in_edges
+              (((target __L1) (type_ Fallthrough)) ((target __L0) (type_ Jump))))
+             (branch ())))
            (false_
-            ((label __L2) (statements (Exit)) (statements_rev (Exit))
-             (in_edges (__L1 __L0)) (branch ())))))))))
+            ((label __L1) (statements ((Putc (Register A))))
+             (in_edges (((target __L0) (type_ Fallthrough))))
+             (branch
+              ((Fallthrough
+                ((label __L2) (statements (Exit))
+                 (in_edges
+                  (((target __L1) (type_ Fallthrough))
+                   ((target __L0) (type_ Jump))))
+                 (branch ())))))))))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "data references are updated for label rewrite" =
@@ -252,12 +226,10 @@ let%expect_test "data references are updated for label rewrite" =
   ir instructions labels data |> print;
   [%expect
     {|
-      ((blocks
-        (((label __L0) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
-          (branch ()))))
-       (data
-        (((label __reserved_heap_base) (data Heap))
-         ((label __D0) (data (Chunk ((Label __L0)))))))) |}]
+    ((blocks (((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
+     (data
+      (((label __reserved_heap_base) (data Heap))
+       ((label __D0) (data (Chunk ((Label __L0)))))))) |}]
 
 let%expect_test "data is segmented correctly" =
   let labels =
@@ -273,9 +245,7 @@ let%expect_test "data is segmented correctly" =
   ir instructions labels data |> print;
   [%expect
     {|
-    ((blocks
-      (((label __L0) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
-        (branch ()))))
+    ((blocks (((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
      (data
       (((label __reserved_heap_base) (data Heap))
        ((label foo) (data (Chunk ((Const 0) (Const 1)))))
@@ -296,7 +266,6 @@ let%expect_test "text references are updated for label rewrite" =
     {|
     ((blocks
       (((label __L0) (statements ((Assign ((dst (Register A)) (src (Label a))))))
-        (statements_rev ((Assign ((dst (Register A)) (src (Label a))))))
         (in_edges ()) (branch ()))))
      (data
       (((label __reserved_heap_base) (data Heap))
@@ -321,16 +290,14 @@ let%expect_test "program with two top blocks" =
   [%expect
     {|
     ((blocks
-      (((label __L0) (statements (Exit)) (statements_rev (Exit)) (in_edges ())
-        (branch ()))
+      (((label __L0) (statements (Exit)) (in_edges ()) (branch ()))
        ((label __L1)
         (statements ((Assign ((dst (Register A)) (src (Register B))))))
-        (statements_rev ((Assign ((dst (Register A)) (src (Register B))))))
         (in_edges ())
         (branch
-         ((Unconditional
-           ((label __L2) (statements (Nop)) (statements_rev (Nop))
-            (in_edges (__L1)) (branch ()))))))))
+         ((Fallthrough
+           ((label __L2) (statements (Nop))
+            (in_edges (((target __L1) (type_ Fallthrough)))) (branch ()))))))))
      (data (((label __reserved_heap_base) (data Heap))))) |}]
 
 let%expect_test "program with self loop" =
@@ -344,7 +311,7 @@ let%expect_test "program with self loop" =
   [%expect {| __L0 |}];
   let target = Block.branch block in
   match target with
-  | Some (Unconditional target) ->
+  | Some (Unconditional_jump target) ->
       printf "%s" (Block.label target);
       [%expect {| __L0 |}]
   | _ -> assert false
