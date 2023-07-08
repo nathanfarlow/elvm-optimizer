@@ -1,5 +1,5 @@
 open Core
-open Elvm_opt
+open Elvm
 module B = Block.M
 
 let print_refs refs =

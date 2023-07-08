@@ -1,8 +1,8 @@
 open! Core
-open Elvm_opt
-module Expression_opt = Elvm_opt.Expression_optimizer
-module Statement_opt = Elvm_opt.Statement_optimizer.Make (Expression_opt)
-module Block_opt = Elvm_opt.General_block_optimizer.Make (Statement_opt)
+open Elvm
+module Expression_opt = Elvm.Expression_optimizer
+module Statement_opt = Elvm.Statement_optimizer.Make (Expression_opt)
+module Block_opt = Elvm.General_block_optimizer.Make (Statement_opt)
 module B = Block.M
 
 let optimizer =

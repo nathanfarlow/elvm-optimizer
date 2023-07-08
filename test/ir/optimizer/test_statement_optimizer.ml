@@ -1,11 +1,9 @@
 open Core
-open Elvm_opt.Expression
-open Elvm_opt.Statement
+open Elvm.Expression
+open Elvm.Statement
+module Optimizer = Elvm.Statement_optimizer.Make (Elvm.Expression_optimizer)
 
-module Optimizer =
-  Elvm_opt.Statement_optimizer.Make (Elvm_opt.Expression_optimizer)
-
-let optimizer = Optimizer.create @@ Elvm_opt.Expression_optimizer.create ()
+let optimizer = Optimizer.create @@ Elvm.Expression_optimizer.create ()
 let print stmt = print_s [%sexp (stmt : t)]
 let optimize stmt = Optimizer.optimize optimizer stmt |> fst
 let ugly_exp = Add [ Const 1; Const 1 ]

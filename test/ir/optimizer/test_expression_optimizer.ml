@@ -1,5 +1,5 @@
 open Core
-open Elvm_opt
+open Elvm
 
 let optimizer = Expression_optimizer.create ()
 let print exp = print_s [%sexp (exp : Expression.t)]

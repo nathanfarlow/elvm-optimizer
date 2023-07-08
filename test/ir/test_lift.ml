@@ -1,7 +1,7 @@
 open! Core
-open! Elvm_opt
-open! Instruction
-open! Program
+open Elvm
+open Instruction
+open Program
 
 let print exp = print_s [%sexp (exp : Ir.t)]
 

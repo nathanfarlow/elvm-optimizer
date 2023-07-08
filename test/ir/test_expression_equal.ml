@@ -1,5 +1,5 @@
 open Core
-open Elvm_opt.Expression
+open Elvm.Expression
 
 let%test "constants equal" =
   let a = Const 0 in

@@ -1,5 +1,5 @@
 open Core
-open Elvm_opt.Expression
+open Elvm.Expression
 
 let print refs =
   let sorted = Hash_set.to_list refs |> List.sort ~compare:String.compare in
