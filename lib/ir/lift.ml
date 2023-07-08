@@ -183,11 +183,8 @@ let make_blocks_from_graph statements out_edges =
   let module B = Block.M in
   (* reverse mapping of out_edges *)
   let in_edges = Hashtbl.create (module String) in
-  (* for each block*)
   Hashtbl.iteri out_edges ~f:(fun ~key:src_label ~data:out_edges ->
-      (* for each out edge in that block *)
       List.iter out_edges ~f:(fun B.Edge.{ target; type_ } ->
-          (* append this edge to the dst block's in labels *)
           Hashtbl.add_multi in_edges ~key:target
             ~data:B.Edge.{ target = src_label; type_ }));
 

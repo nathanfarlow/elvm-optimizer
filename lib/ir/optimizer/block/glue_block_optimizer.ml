@@ -32,29 +32,27 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
         ignore @@ optimize ref_provider target;
         concatenate block target;
         true
-    | _ ->
-        Block_optimizer_util.optimize_branch (optimize ref_provider)
-          block.branch
+    | _ -> false
+  (* Block_optimizer_util.optimize_branch (optimize ref_provider)
+     block.branch *)
 
   and change_jump_to_fallthrough block target =
     (* update the target's in-edge for this block to be a fallthrough edge *)
     let module B = Block.M in
     target.in_edges <-
       List.map target.in_edges ~f:(function
-        | { target; type_ = Fallthrough } as e
-          when String.equal target block.label ->
+        | { target; _ } as e when String.equal target block.label ->
             B.Edge.{ e with type_ = Fallthrough }
         | _ as e -> e);
     (* update this block's branch to be fallthrough to target *)
-    target.branch <- Some (B.Branch.Fallthrough target);
+    block.branch <- Some (B.Branch.Fallthrough target);
     (* drop the jump instruction *)
     block.statements <- Array.slice block.statements 0 (-1)
 
   and concatenate block target =
     let open Block.M in
     block.statements <- Array.append block.statements target.statements;
-    (* update this block's branch to be target's branch, but with
-       target's target's in-edges updated to this block *)
+    (* update target's target's in-edges to this block *)
     let update_in_edges targets_target =
       targets_target.in_edges <-
         List.map targets_target.in_edges ~f:(function
@@ -63,18 +61,20 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
               Edge.{ e with target = block.label }
           | _ as e -> e)
     in
-    match target.branch with
-    | Some (Unconditional_jump target) ->
-        update_in_edges target;
-        block.branch <- Some (Branch.Unconditional_jump target)
-    | Some (Conditional_jump { true_; false_ }) ->
-        update_in_edges true_;
-        update_in_edges false_;
-        block.branch <- Some (Conditional_jump { true_; false_ })
-    | Some (Fallthrough target) ->
-        update_in_edges target;
-        block.branch <- Some (Fallthrough target)
-    | None -> ()
+    (* update this block's branch to be target's branch *)
+    block.branch <-
+      (match target.branch with
+      | Some (Unconditional_jump target) ->
+          update_in_edges target;
+          Some (Branch.Unconditional_jump target)
+      | Some (Conditional_jump { true_; false_ }) ->
+          update_in_edges true_;
+          update_in_edges false_;
+          Some (Conditional_jump { true_; false_ })
+      | Some (Fallthrough target) ->
+          update_in_edges target;
+          Some (Fallthrough target)
+      | None -> None)
 
   let create = Fn.id
 end
