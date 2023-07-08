@@ -233,12 +233,11 @@ let make_top_level_blocks program pc_to_label =
   |> List.filter ~f:Block.M.is_top_level
 
 let make_data (program : Program.t) offset_to_label =
-  let open Ir in
   (* remove special heap base label for now. we handle it explicitly *)
   Hashtbl.filter_inplace offset_to_label ~f:(fun label ->
       not (String.equal label Program.heap_label));
 
-  let heap_entry = { label = Program.heap_label; data = Heap } in
+  let heap_entry = Ir.Data.create ~label:Program.heap_label ~type_:Heap in
   if not @@ List.is_empty (Program.data program) then (
     (* add a first data label if there isn't one *)
     let fresh_label = (fresh_label "__D" program) () in
@@ -251,7 +250,8 @@ let make_data (program : Program.t) offset_to_label =
       List.groupi (Program.data program) ~break:(fun i _ _ ->
           Hashtbl.mem offset_to_label i)
       |> List.zip_exn sorted_labels_by_offset
-      |> List.map ~f:(fun (label, data) -> { label; data = Chunk data })
+      |> List.map ~f:(fun (label, data) ->
+             Ir.Data.create ~label ~type_:(Chunk data))
     in
     heap_entry :: chunks)
   else [ heap_entry ]

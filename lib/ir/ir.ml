@@ -1,13 +1,15 @@
 open Core
 
-type data_type = Chunk of Program.data_entry list | Heap
-[@@deriving sexp, equal]
+module Data = struct
+  type type_ = Chunk of Program.data_entry list | Heap
+  [@@deriving sexp, equal]
 
-type data_block = { label : string; data : data_type } [@@deriving sexp, equal]
+  type t = { label : string; type_ : type_ } [@@deriving sexp, equal, fields]
 
-type t = { blocks : Block.M.t list; data : data_block list }
-[@@deriving sexp, equal]
+  let create ~label ~type_ = { label; type_ }
+end
+
+type t = { blocks : Block.M.t list; data : Data.t list }
+[@@deriving sexp, equal, fields]
 
 let create ~blocks ~data = { blocks; data }
-let blocks t = t.blocks
-let data t = t.data
