@@ -14,7 +14,7 @@ let optimize = Block_opt.optimize optimizer
 let%expect_test "optimizes statements" =
   let label = "foo" in
   let statements =
-    [ Statement.Assign { dst = Register A; src = Add [ Const 1; Const 1 ] } ]
+    [| Statement.Assign { dst = Register A; src = Add [ Const 1; Const 1 ] } |]
   in
   let in_edges = [] in
   let branch = None in
@@ -31,17 +31,17 @@ let%expect_test "corrects optimized branch" =
   let baz =
     let label = "baz" in
     let in_edges = [ B.Edge.{ target = "foo"; type_ = Jump } ] in
-    let statements = [ Statement.Nop ] in
+    let statements = [| Statement.Nop |] in
     let branch = None in
     B.{ label; statements; in_edges; branch }
   in
   let bar =
     let in_edges = [ B.Edge.{ target = "foo"; type_ = Fallthrough } ] in
-    B.{ label = "bar"; statements = [ Nop ]; in_edges; branch = None }
+    B.{ label = "bar"; statements = [| Nop |]; in_edges; branch = None }
   in
   let foo =
     let statements =
-      [
+      [|
         Statement.Jump
           {
             target = Label "baz";
@@ -49,7 +49,7 @@ let%expect_test "corrects optimized branch" =
             condition =
               Some { comparison = Eq; left = Const 1; right = Const 1 };
           };
-      ]
+      |]
     in
     let in_edges = [] in
     let branch =

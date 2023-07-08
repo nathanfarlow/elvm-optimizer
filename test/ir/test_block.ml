@@ -9,14 +9,14 @@ let of_statements statements =
 
 let%expect_test "references returns statement references" =
   of_statements
-    [
+    [|
       Assign { dst = Memory (Label "foo"); src = Label "bar" };
       Assign { dst = Memory (Label "baz"); src = Label "baq" };
-    ]
+    |]
   |> B.references |> print_refs;
   [%expect {| (baq bar baz foo) |}]
 
 let%expect_test "references removes duplicate references" =
-  of_statements [ Assign { dst = Memory (Label "foo"); src = Label "foo" } ]
+  of_statements [| Assign { dst = Memory (Label "foo"); src = Label "foo" } |]
   |> B.references |> print_refs;
   [%expect {| (foo) |}]

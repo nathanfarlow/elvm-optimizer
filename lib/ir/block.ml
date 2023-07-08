@@ -3,7 +3,7 @@ open Core
 module rec M : sig
   type t = {
     label : string;
-    mutable statements : Statement.t list;
+    mutable statements : Statement.t array;
     mutable in_edges : M.Edge.t list;
     mutable branch : M.Branch.t option;
   }
@@ -33,7 +33,7 @@ end = struct
 
   type t = {
     label : string;
-    mutable statements : Statement.t list;
+    mutable statements : Statement.t array;
     mutable in_edges : Edge.t list;
     mutable branch : M.Branch.t option;
   }
@@ -57,6 +57,8 @@ end = struct
   let dependencies _ = failwith "dependencies not implemented"
 
   let references t =
-    List.concat_map t.statements ~f:Statement.references
+    Array.concat_map t.statements ~f:(fun s ->
+        Statement.references s |> List.to_array)
+    |> Array.to_list
     |> List.dedup_and_sort ~compare:String.compare
 end

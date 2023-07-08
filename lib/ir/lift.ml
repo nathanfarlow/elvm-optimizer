@@ -195,7 +195,9 @@ let make_blocks_from_graph statements out_edges =
   let blocks = Hashtbl.create (module String) in
   Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
       let in_edges = Hashtbl.find_multi in_edges label in
-      let block = B.{ label; statements = [ stmt ]; in_edges; branch = None } in
+      let block =
+        B.{ label; statements = [| stmt |]; in_edges; branch = None }
+      in
       Hashtbl.add_exn blocks ~key:label ~data:block);
 
   (* fill in branches *)

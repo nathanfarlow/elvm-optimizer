@@ -48,11 +48,11 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
     (* update this block's branch to be fallthrough to target *)
     target.branch <- Some (B.Branch.Fallthrough target);
     (* drop the jump instruction *)
-    block.statements <- block.statements |> List.drop_last_exn
+    block.statements <- Array.slice block.statements 0 (-1)
 
   and concatenate block target =
     let open Block.M in
-    block.statements <- block.statements @ target.statements;
+    block.statements <- Array.append block.statements target.statements;
     (* update this block's branch to be target's branch, but with
        target's target's in-edges updated to this block *)
     let update_in_edges targets_target =

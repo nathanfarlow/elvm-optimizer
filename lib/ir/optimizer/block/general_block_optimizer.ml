@@ -9,17 +9,19 @@ struct
 
   let optimize_statements stmt_optimizer block =
     let open Block.M in
-    let statements, statement_changes =
-      block.statements
-      |> List.map ~f:(Statement_optimizer.optimize stmt_optimizer)
-      |> List.unzip
-    in
-    block.statements <- statements;
-    List.exists statement_changes ~f:Fn.id
+    Array.foldi block.statements ~init:false ~f:(fun i changed stmt ->
+        let stmt', changed' =
+          Statement_optimizer.optimize stmt_optimizer stmt
+        in
+        block.statements.(i) <- stmt';
+        changed || changed')
 
   let correct_branch block =
     let open Block.M in
-    let maybe_jump = List.last block.statements in
+    let maybe_jump =
+      if Array.is_empty block.statements then None
+      else Some (Array.last block.statements)
+    in
     match (maybe_jump, block.branch) with
     (* if a conditional jump statement was simplified to an unconditional
        jump, correct the branch to the unconditionally true branch *)

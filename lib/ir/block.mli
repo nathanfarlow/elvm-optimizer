@@ -3,7 +3,7 @@ open! Core
 module rec M : sig
   type t = {
     label : string;
-    mutable statements : Statement.t list;
+    mutable statements : Statement.t array;
     mutable in_edges : M.Edge.t list;
     mutable branch : M.Branch.t option;
   }
