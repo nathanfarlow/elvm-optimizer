@@ -17,4 +17,4 @@ type t =
   | Nop
 [@@deriving sexp, equal]
 
-val references : t -> string list
+val references : t -> string Hash_set.t

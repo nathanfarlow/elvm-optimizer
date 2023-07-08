@@ -1,7 +1,9 @@
 open Core
 open Elvm_opt.Expression
 
-let print refs = print_s [%sexp (refs : string list)]
+let print refs =
+  let sorted = Hash_set.to_list refs |> List.sort ~compare:String.compare in
+  print_s [%sexp (sorted : string list)]
 
 let%expect_test "label has reference" =
   references (Label "foo") |> print;

@@ -2,7 +2,9 @@ open Core
 open Elvm_opt
 module B = Block.M
 
-let print_refs refs = print_s [%sexp (refs : string list)]
+let print_refs refs =
+  let sorted = Hash_set.to_list refs |> List.sort ~compare:String.compare in
+  print_s [%sexp (sorted : string list)]
 
 let of_statements statements =
   B.{ label = "foo"; statements; in_edges = []; branch = None }

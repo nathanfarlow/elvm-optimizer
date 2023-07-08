@@ -45,12 +45,18 @@ let rec equal a b =
   | _ -> false
 
 let references t =
+  let set = Hash_set.create (module String) in
   let rec aux = function
-    | Label label -> [ label ]
+    | Label label -> Hash_set.add set label
     | Memory addr -> aux addr
-    | Add xs -> List.concat_map xs ~f:aux
-    | Sub (x, y) -> aux x @ aux y
-    | Set { left; right; _ } -> aux left @ aux right
-    | _ -> []
+    | Add xs -> List.iter xs ~f:aux
+    | Sub (x, y) ->
+        aux x;
+        aux y
+    | Set { left; right; _ } ->
+        aux left;
+        aux right
+    | _ -> ()
   in
-  List.dedup_and_sort ~compare:String.compare (aux t)
+  aux t;
+  set

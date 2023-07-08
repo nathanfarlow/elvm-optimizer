@@ -24,5 +24,5 @@ module rec M : sig
 
   val is_top_level : t -> bool
   val dependencies : t -> Statement.variable list
-  val references : t -> string list
+  val references : t -> string Hash_set.t
 end

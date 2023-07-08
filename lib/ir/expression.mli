@@ -17,4 +17,4 @@ and t =
 [@@deriving sexp]
 
 val equal : t -> t -> bool
-val references : t -> string list
+val references : t -> string Hash_set.t

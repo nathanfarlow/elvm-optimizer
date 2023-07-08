@@ -17,19 +17,21 @@ type t =
   | Nop
 [@@deriving sexp, equal]
 
-let references_variable = function
-  | Memory exp -> Expression.references exp
-  | Register _ -> []
-
-let references_condition cond = Expression.references (Set cond)
-
 let references t =
-  let aux = function
-    | Assign { dst; src } -> Expression.references src @ references_variable dst
-    | Putc exp -> Expression.references exp
-    | Jump { target; condition } ->
-        Expression.references target
-        @ Option.value_map condition ~default:[] ~f:references_condition
-    | Exit | Nop -> []
+  let set = Hash_set.create (module String) in
+  let add_all = Hash_set.iter ~f:(Hash_set.add set) in
+  let add_variable_refs = function
+    | Memory exp -> add_all @@ Expression.references exp
+    | Register _ -> ()
   in
-  List.dedup_and_sort ~compare:String.compare (aux t)
+  let add_condition_refs cond = add_all @@ Expression.references (Set cond) in
+  (match t with
+  | Assign { dst; src } ->
+      add_variable_refs dst;
+      add_all @@ Expression.references src
+  | Putc exp -> add_all @@ Expression.references exp
+  | Jump { target; condition } ->
+      add_all @@ Expression.references target;
+      Option.iter condition ~f:add_condition_refs
+  | Exit | Nop -> ());
+  set

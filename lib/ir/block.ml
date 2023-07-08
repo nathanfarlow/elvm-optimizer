@@ -24,7 +24,7 @@ module rec M : sig
 
   val is_top_level : t -> bool
   val dependencies : t -> Statement.variable list
-  val references : t -> string list
+  val references : t -> string Hash_set.t
 end = struct
   module Edge = struct
     type type_ = Jump | Fallthrough [@@deriving sexp, equal]
@@ -57,8 +57,8 @@ end = struct
   let dependencies _ = failwith "dependencies not implemented"
 
   let references t =
-    Array.concat_map t.statements ~f:(fun s ->
-        Statement.references s |> List.to_array)
-    |> Array.to_list
-    |> List.dedup_and_sort ~compare:String.compare
+    let set = Hash_set.create (module String) in
+    Array.iter t.statements ~f:(fun s ->
+        Hash_set.iter ~f:(Hash_set.add set) (Statement.references s));
+    set
 end
