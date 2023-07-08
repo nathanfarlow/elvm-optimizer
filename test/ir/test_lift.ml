@@ -155,7 +155,7 @@ let%expect_test "fallthrough branches are added for each instruction" =
         (branch
          ((Fallthrough
            ((label __L1) (statements (Exit))
-            (in_edges (((target __L0) (type_ Fallthrough)))) (branch ()))))))))
+            (in_edges (((label __L0) (type_ Fallthrough)))) (branch ()))))))))
      (data (((label __reserved_heap_base) (type_ Heap))))) |}]
 
 let%expect_test "unconditional branch has edge to target" =
@@ -172,7 +172,7 @@ let%expect_test "unconditional branch has edge to target" =
         (branch
          ((Unconditional_jump
            ((label __L1) (statements (Exit))
-            (in_edges (((target __L0) (type_ Jump)))) (branch ()))))))))
+            (in_edges (((label __L0) (type_ Jump)))) (branch ()))))))))
      (data (((label __reserved_heap_base) (type_ Heap))))) |}]
 
 let%expect_test "conditional branch have edges to targets" =
@@ -205,17 +205,17 @@ let%expect_test "conditional branch have edges to targets" =
            (true_
             ((label __L2) (statements (Exit))
              (in_edges
-              (((target __L1) (type_ Fallthrough)) ((target __L0) (type_ Jump))))
+              (((label __L1) (type_ Fallthrough)) ((label __L0) (type_ Jump))))
              (branch ())))
            (false_
             ((label __L1) (statements ((Putc (Register A))))
-             (in_edges (((target __L0) (type_ Fallthrough))))
+             (in_edges (((label __L0) (type_ Fallthrough))))
              (branch
               ((Fallthrough
                 ((label __L2) (statements (Exit))
                  (in_edges
-                  (((target __L1) (type_ Fallthrough))
-                   ((target __L0) (type_ Jump))))
+                  (((label __L1) (type_ Fallthrough))
+                   ((label __L0) (type_ Jump))))
                  (branch ())))))))))))))
      (data (((label __reserved_heap_base) (type_ Heap))))) |}]
 
@@ -297,7 +297,7 @@ let%expect_test "program with two top blocks" =
         (branch
          ((Fallthrough
            ((label __L2) (statements (Nop))
-            (in_edges (((target __L1) (type_ Fallthrough)))) (branch ()))))))))
+            (in_edges (((label __L1) (type_ Fallthrough)))) (branch ()))))))))
      (data (((label __reserved_heap_base) (type_ Heap))))) |}]
 
 let%expect_test "program with self loop" =

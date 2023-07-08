@@ -41,7 +41,7 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
     let module B = Block.M in
     target.in_edges <-
       List.map target.in_edges ~f:(function
-        | { target; _ } as e when String.equal target block.label ->
+        | { label; _ } as e when String.equal label block.label ->
             B.Edge.{ e with type_ = Fallthrough }
         | _ as e -> e);
     (* update this block's branch to be fallthrough to target *)
@@ -56,9 +56,8 @@ module Make (Reference_provider : Reference_provider_intf.S) = struct
     let update_in_edges targets_target =
       targets_target.in_edges <-
         List.map targets_target.in_edges ~f:(function
-          | { target = targets_target; _ } as e
-            when String.equal targets_target target.label ->
-              Edge.{ e with target = block.label }
+          | { label; _ } as e when String.equal label target.label ->
+              Edge.{ e with label = block.label }
           | _ as e -> e)
     in
     (* update this block's branch to be target's branch *)

@@ -30,13 +30,13 @@ let%expect_test "optimizes statements" =
 let%expect_test "corrects optimized branch" =
   let baz =
     let label = "baz" in
-    let in_edges = [ B.Edge.{ target = "foo"; type_ = Jump } ] in
+    let in_edges = [ B.Edge.{ label = "foo"; type_ = Jump } ] in
     let statements = [| Statement.Nop |] in
     let branch = None in
     B.{ label; statements; in_edges; branch }
   in
   let bar =
-    let in_edges = [ B.Edge.{ target = "foo"; type_ = Fallthrough } ] in
+    let in_edges = [ B.Edge.{ label = "foo"; type_ = Fallthrough } ] in
     B.{ label = "bar"; statements = [| Nop |]; in_edges; branch = None }
   in
   let foo =
@@ -66,7 +66,7 @@ let%expect_test "corrects optimized branch" =
      (in_edges ())
      (branch
       ((Unconditional_jump
-        ((label baz) (statements (Nop)) (in_edges (((target foo) (type_ Jump))))
+        ((label baz) (statements (Nop)) (in_edges (((label foo) (type_ Jump))))
          (branch ())))))) |}];
   print_block bar;
   (* there should be no fallthrough branch from foo *)

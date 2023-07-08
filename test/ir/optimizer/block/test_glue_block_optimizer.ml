@@ -29,7 +29,7 @@ let%expect_test "simplifies unconditional jump to target which has no \
       {
         label = "block_with_ref";
         statements = [| Exit |];
-        in_edges = [ { target = "parent"; type_ = Jump } ];
+        in_edges = [ { label = "parent"; type_ = Jump } ];
         branch = None;
       }
   in
@@ -54,7 +54,7 @@ let%expect_test "simplifies unconditional jump to target which has no \
      (branch
       ((Fallthrough
         ((label block_with_ref) (statements (Exit))
-         (in_edges (((target parent) (type_ Fallthrough)))) (branch ())))))) |}]
+         (in_edges (((label parent) (type_ Fallthrough)))) (branch ())))))) |}]
 
 let%expect_test "does not simplify unconditional jump to target which has \
                  fallthrough edge" =
@@ -65,8 +65,8 @@ let%expect_test "does not simplify unconditional jump to target which has \
         statements = [| Exit |];
         in_edges =
           [
-            { target = "parent"; type_ = Jump };
-            { target = "other_fallthrough"; type_ = Fallthrough };
+            { label = "parent"; type_ = Jump };
+            { label = "other_fallthrough"; type_ = Fallthrough };
           ];
         branch = None;
       }
@@ -95,8 +95,8 @@ let%expect_test "does not simplify unconditional jump to target which has \
       ((Unconditional_jump
         ((label block_with_ref) (statements (Exit))
          (in_edges
-          (((target parent) (type_ Jump))
-           ((target other_fallthrough) (type_ Fallthrough))))
+          (((label parent) (type_ Jump))
+           ((label other_fallthrough) (type_ Fallthrough))))
          (branch ())))))) |}]
 
 let%expect_test "concatenates fallthrough blocks with no references" =
@@ -105,7 +105,7 @@ let%expect_test "concatenates fallthrough blocks with no references" =
       {
         label = "block_with_no_ref";
         statements = [| Exit |];
-        in_edges = [ { target = "parent"; type_ = Fallthrough } ];
+        in_edges = [ { label = "parent"; type_ = Fallthrough } ];
         branch = None;
       }
   in
@@ -130,7 +130,7 @@ let%expect_test "does not concatenate fallthrough blocks with references" =
       {
         label = "block_with_ref";
         statements = [| Exit |];
-        in_edges = [ { target = "parent"; type_ = Fallthrough } ];
+        in_edges = [ { label = "parent"; type_ = Fallthrough } ];
         branch = None;
       }
   in
@@ -152,4 +152,4 @@ let%expect_test "does not concatenate fallthrough blocks with references" =
      (branch
       ((Fallthrough
         ((label block_with_ref) (statements (Exit))
-         (in_edges (((target parent) (type_ Fallthrough)))) (branch ())))))) |}]
+         (in_edges (((label parent) (type_ Fallthrough)))) (branch ())))))) |}]

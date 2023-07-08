@@ -11,7 +11,7 @@ module rec M : sig
 
   module Edge : sig
     type type_ = Jump | Fallthrough [@@deriving sexp, equal]
-    type t = { target : string; type_ : type_ } [@@deriving sexp, equal]
+    type t = { label : string; type_ : type_ } [@@deriving sexp, equal]
   end
 
   module Branch : sig

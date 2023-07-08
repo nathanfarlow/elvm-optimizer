@@ -31,7 +31,7 @@ struct
         (* print false_.in_edges *)
         false_.in_edges <-
           List.filter false_.in_edges ~f:(fun edge ->
-              not (String.equal edge.target block.label));
+              not (String.equal edge.label block.label));
         (* correct this block's branch to be unconditional to the true branch *)
         block.branch <- Some (Branch.Unconditional_jump true_);
         true

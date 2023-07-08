@@ -159,7 +159,7 @@ let make_graph program pc_to_label =
       (match !fallthrough_label with
       | Some prev_label ->
           Hashtbl.add_multi out_edges ~key:prev_label
-            ~data:B.Edge.{ target = label; type_ = Fallthrough }
+            ~data:B.Edge.{ label; type_ = Fallthrough }
       | None -> ());
 
       Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
@@ -167,9 +167,9 @@ let make_graph program pc_to_label =
         match insn with
         | Jump { target; condition } ->
             (match target with
-            | Label target ->
+            | Label target_label ->
                 Hashtbl.add_multi out_edges ~key:label
-                  ~data:B.Edge.{ target; type_ = Jump }
+                  ~data:B.Edge.{ label = target_label; type_ = Jump }
             | Register _ -> ()
             (* these should have already been replaced with jump label *)
             | Int _ -> assert false);
@@ -184,9 +184,9 @@ let make_blocks_from_graph statements out_edges =
   (* reverse mapping of out_edges *)
   let in_edges = Hashtbl.create (module String) in
   Hashtbl.iteri out_edges ~f:(fun ~key:src_label ~data:out_edges ->
-      List.iter out_edges ~f:(fun B.Edge.{ target; type_ } ->
-          Hashtbl.add_multi in_edges ~key:target
-            ~data:B.Edge.{ target = src_label; type_ }));
+      List.iter out_edges ~f:(fun B.Edge.{ label; type_ } ->
+          Hashtbl.add_multi in_edges ~key:label
+            ~data:B.Edge.{ label = src_label; type_ }));
 
   (* create blocks without branches *)
   let blocks = Hashtbl.create (module String) in
@@ -203,16 +203,16 @@ let make_blocks_from_graph statements out_edges =
       let branch =
         match branch with
         | None -> None
-        | Some [ { target; type_ = Fallthrough } ] ->
-            let target = Hashtbl.find_exn blocks target in
+        | Some [ { label; type_ = Fallthrough } ] ->
+            let target = Hashtbl.find_exn blocks label in
             Some (B.Branch.Fallthrough target)
-        | Some [ { target; type_ = Jump } ] ->
-            let target = Hashtbl.find_exn blocks target in
+        | Some [ { label; type_ = Jump } ] ->
+            let target = Hashtbl.find_exn blocks label in
             Some (B.Branch.Unconditional_jump target)
         | Some
             [
-              { target = false_; type_ = Fallthrough };
-              { target = true_; type_ = Jump };
+              { label = false_; type_ = Fallthrough };
+              { label = true_; type_ = Jump };
             ] ->
             let true_ = Hashtbl.find_exn blocks true_ in
             let false_ = Hashtbl.find_exn blocks false_ in
