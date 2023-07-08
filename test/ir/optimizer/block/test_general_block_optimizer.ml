@@ -67,4 +67,7 @@ let%expect_test "corrects optimized branch" =
      (branch
       ((Unconditional_jump
         ((label baz) (statements (Nop)) (in_edges (((target foo) (type_ Jump))))
-         (branch ())))))) |}]
+         (branch ())))))) |}];
+  print_block bar;
+  (* there should be no fallthrough branch from foo *)
+  [%expect {| ((label bar) (statements (Nop)) (in_edges ()) (branch ())) |}]

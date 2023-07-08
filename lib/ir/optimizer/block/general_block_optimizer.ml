@@ -24,9 +24,15 @@ struct
     in
     match (maybe_jump, block.branch) with
     (* if a conditional jump statement was simplified to an unconditional
-       jump, correct the branch to the unconditionally true branch *)
+       jump: *)
     | ( Some (Statement.Jump { condition = None; _ }),
-        Some (Conditional_jump { true_; _ }) ) ->
+        Some (Conditional_jump { true_; false_ }) ) ->
+        (* delete this block from the false branch's in edges *)
+        (* print false_.in_edges *)
+        false_.in_edges <-
+          List.filter false_.in_edges ~f:(fun edge ->
+              not (String.equal edge.target block.label));
+        (* correct this block's branch to be unconditional to the true branch *)
         block.branch <- Some (Branch.Unconditional_jump true_);
         true
     | _ -> false
