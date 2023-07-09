@@ -1,6 +1,8 @@
 (library
  (name elvm)
  (public_name elvm)
+ (flags
+  (:standard -open Core))
  (libraries core str)
  (preprocess
   (pps ppx_jane)))
