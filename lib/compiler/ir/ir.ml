@@ -1,6 +1,6 @@
 type t = unit
 
-module Expression = Expression.M
+module Expression = Expression
 module Statement = Statement
-module Block = Block.M
+module Block = Block
 module Graph = Graph

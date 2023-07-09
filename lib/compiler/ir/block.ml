@@ -8,8 +8,8 @@ module rec M : sig
   [@@deriving sexp, equal]
 
   module Edge : sig
-    type type_ = Jump | Fallthrough [@@deriving sexp, equal]
-    type t = { label : string; type_ : type_ } [@@deriving sexp, equal]
+    type type_ = Jump | Fallthrough [@@deriving sexp, equal, hash]
+    type t = { label : string; type_ : type_ } [@@deriving sexp, equal, hash]
   end
 
   module Branch : sig
@@ -29,8 +29,8 @@ end = struct
   [@@deriving sexp, equal]
 
   module Edge = struct
-    type type_ = Jump | Fallthrough [@@deriving sexp, equal]
-    type t = { label : string; type_ : type_ } [@@deriving sexp, equal]
+    type type_ = Jump | Fallthrough [@@deriving sexp, equal, hash]
+    type t = { label : string; type_ : type_ } [@@deriving sexp, equal, hash]
   end
 
   module Branch = struct
@@ -41,3 +41,5 @@ end = struct
     [@@deriving sexp, equal]
   end
 end
+
+include M
