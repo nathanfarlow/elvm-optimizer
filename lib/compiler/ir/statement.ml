@@ -1,8 +1,5 @@
 module Assignment = struct
-  type destination = Var of string | Memory of Expression.t
-  [@@deriving sexp, equal, hash]
-
-  type t = { dst : destination; src : Expression.t }
+  type t = { dst : Expression.Variable.t; src : Expression.t }
   [@@deriving sexp, equal, hash]
 end
 
@@ -23,8 +20,8 @@ let references t =
   let set = Hash_set.create (module String) in
   let add_all = Hash_set.iter ~f:(Hash_set.add set) in
   let add_assignment_refs = function
-    | Assignment.Memory exp -> add_all @@ Expression.references exp
-    | Var _ -> ()
+    | Expression.Variable.Memory exp -> add_all @@ Expression.references exp
+    | Local _ -> ()
   in
   let add_condition_refs cond = add_all @@ Expression.references (If cond) in
   (match t with

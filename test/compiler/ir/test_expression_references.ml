@@ -10,7 +10,7 @@ let%expect_test "label has reference" =
   [%expect {| (foo) |}]
 
 let%expect_test "memory has references" =
-  references (Memory (Label "foo")) |> print;
+  references (Var (Memory (Label "foo"))) |> print;
   [%expect {| (foo) |}]
 
 let%expect_test "add has references" =

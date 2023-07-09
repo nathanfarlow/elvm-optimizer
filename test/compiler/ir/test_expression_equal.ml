@@ -12,23 +12,23 @@ let%test "constants not equal" =
   not (equal a b)
 
 let%test "same variables are equal" =
-  let a = Var "A" in
-  let b = Var "A" in
+  let a = Var (Local "A") in
+  let b = Var (Local "A") in
   equal a b
 
 let%test "different variables are not equal" =
-  let a = Var "A" in
-  let b = Var "B" in
+  let a = Var (Local "A") in
+  let b = Var (Local "B") in
   not @@ equal a b
 
 let%test "same memory is equal" =
-  let a = Memory (Const 0) in
-  let b = Memory (Const 0) in
+  let a = Var (Memory (Const 0)) in
+  let b = Var (Memory (Const 0)) in
   equal a b
 
 let%test "different memory is not equal" =
-  let a = Memory (Const 0) in
-  let b = Memory (Const 1) in
+  let a = Var (Memory (Const 0)) in
+  let b = Var (Memory (Const 1)) in
   not @@ equal a b
 
 let%test "add in same order is equal" =

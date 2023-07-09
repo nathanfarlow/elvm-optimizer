@@ -1,8 +1,5 @@
 module Assignment : sig
-  type destination = Var of string | Memory of Expression.t
-  [@@deriving sexp, equal, hash]
-
-  type t = { dst : destination; src : Expression.t }
+  type t = { dst : Expression.Variable.t; src : Expression.t }
   [@@deriving sexp, equal, hash]
 end
 

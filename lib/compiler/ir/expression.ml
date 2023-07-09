@@ -2,8 +2,7 @@ module rec M : sig
   type t =
     | Const of int
     | Label of string
-    | Var of string
-    | Memory of t
+    | Var of M.Variable.t
     | Add of t list
     | Sub of t * t
     | Getc
@@ -19,14 +18,17 @@ module rec M : sig
     [@@deriving sexp, equal, hash]
   end
 
+  module Variable : sig
+    type t = Local of string | Memory of M.t [@@deriving sexp, equal, hash]
+  end
+
   val equal : t -> t -> bool
   val references : t -> string Hash_set.t
 end = struct
   type t =
     | Const of int
     | Label of string
-    | Var of string
-    | Memory of t
+    | Var of M.Variable.t
     | Add of t list
     | Sub of t * t
     | Getc
@@ -42,11 +44,14 @@ end = struct
     [@@deriving sexp, equal, hash]
   end
 
+  module Variable = struct
+    type t = Local of string | Memory of M.t [@@deriving sexp, equal, hash]
+  end
+
   let rec equal a b =
     match (a, b) with
     | Const x, Const y -> x = y
-    | Var x, Var y -> String.equal x y
-    | Memory x, Memory y -> equal x y
+    | Var x, Var y -> Variable.equal x y
     | Add xs, Add ys ->
         if List.length xs <> List.length ys then false
         else
@@ -74,7 +79,7 @@ end = struct
     let set = Hash_set.create (module String) in
     let rec aux = function
       | Label label -> Hash_set.add set label
-      | Memory addr -> aux addr
+      | Var (Memory addr) -> aux addr
       | Add xs -> List.iter xs ~f:aux
       | Sub (x, y) ->
           aux x;
