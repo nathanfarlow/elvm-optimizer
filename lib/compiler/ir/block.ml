@@ -19,6 +19,9 @@ module rec M : sig
       | Fallthrough of M.t
     [@@deriving sexp, equal]
   end
+
+  val is_top_level : t -> bool
+  val references : t -> string Hash_set.t
 end = struct
   type t = {
     label : string;
@@ -40,6 +43,18 @@ end = struct
       | Fallthrough of M.t
     [@@deriving sexp, equal]
   end
+
+  let is_top_level t =
+    match t.in_edges with
+    | [] -> true
+    | [ { label; type_ = Jump } ] -> String.equal label t.label
+    | _ -> false
+
+  let references t =
+    let set = Hash_set.create (module String) in
+    Array.iter t.statements ~f:(fun s ->
+        Hash_set.iter ~f:(Hash_set.add set) (Statement.references s));
+    set
 end
 
 include M
