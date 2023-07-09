@@ -1,25 +1,29 @@
 type t
 
 module Register : sig
-  type t = A | B | C | D | SP | BP [@@deriving sexp, equal]
+  type t = A | B | C | D | SP | BP [@@deriving sexp, equal, hash]
+
+  val to_string : t -> string
 end
 
 module Instruction : sig
   module Imm_or_reg : sig
     type t = Int of int | Label of string | Register of Register.t
-    [@@deriving sexp, equal]
+    [@@deriving sexp, equal, hash]
   end
 
   module Operands : sig
-    type t = { src : Imm_or_reg.t; dst : Register.t } [@@deriving sexp, equal]
+    type t = { src : Imm_or_reg.t; dst : Register.t }
+    [@@deriving sexp, equal, hash]
   end
 
   module Comparison : sig
-    type t = Eq | Ne | Lt | Le | Gt | Ge [@@deriving sexp, equal]
+    type t = Eq | Ne | Lt | Le | Gt | Ge [@@deriving sexp, equal, hash]
   end
 
   module Condition : sig
-    type t = { cmp : Comparison.t; args : Operands.t } [@@deriving sexp, equal]
+    type t = { cmp : Comparison.t; args : Operands.t }
+    [@@deriving sexp, equal, hash]
   end
 
   type t =
@@ -34,19 +38,19 @@ module Instruction : sig
     | Jump of { target : Imm_or_reg.t; cond : Condition.t option }
     | Set of Condition.t
     | Dump
-  [@@deriving sexp, equal]
+  [@@deriving sexp, equal, hash]
 end
 
 module Segment : sig
-  type t = Data | Text [@@deriving sexp, equal]
+  type t = Data | Text [@@deriving sexp, equal, hash]
 end
 
 module Address : sig
-  type t = { segment : Segment.t; offset : int } [@@deriving sexp, equal]
+  type t = { segment : Segment.t; offset : int } [@@deriving sexp, equal, hash]
 end
 
 module Data : sig
-  type t = Const of int | Label of string [@@deriving sexp, equal]
+  type t = Const of int | Label of string [@@deriving sexp, equal, hash]
 end
 
 val const_heap_start_label : string

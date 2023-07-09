@@ -1,7 +1,7 @@
 open Core
 
 module Register = struct
-  type t = A | B | C | D | SP | BP [@@deriving sexp, equal]
+  type t = A | B | C | D | SP | BP [@@deriving sexp, equal, hash]
 
   let maybe_parse = function
     | "A" -> Some A
@@ -16,6 +16,14 @@ module Register = struct
     match maybe_parse s with
     | Some r -> r
     | None -> failwith @@ s ^ " is not a register"
+
+  let to_string = function
+    | A -> "A"
+    | B -> "B"
+    | C -> "C"
+    | D -> "D"
+    | SP -> "SP"
+    | BP -> "BP"
 end
 
 let maybe_parse_label line =
@@ -30,7 +38,7 @@ let maybe_parse_number s =
 module Instruction = struct
   module Imm_or_reg = struct
     type t = Int of int | Label of string | Register of Register.t
-    [@@deriving sexp, equal]
+    [@@deriving sexp, equal, hash]
 
     let parse_exn s ~labels =
       match maybe_parse_number s with
@@ -44,7 +52,8 @@ module Instruction = struct
   end
 
   module Operands = struct
-    type t = { src : Imm_or_reg.t; dst : Register.t } [@@deriving sexp, equal]
+    type t = { src : Imm_or_reg.t; dst : Register.t }
+    [@@deriving sexp, equal, hash]
 
     let parse_exn ~src ~dst ~labels =
       let src = Imm_or_reg.parse_exn src ~labels in
@@ -53,11 +62,12 @@ module Instruction = struct
   end
 
   module Comparison = struct
-    type t = Eq | Ne | Lt | Le | Gt | Ge [@@deriving sexp, equal]
+    type t = Eq | Ne | Lt | Le | Gt | Ge [@@deriving sexp, equal, hash]
   end
 
   module Condition = struct
-    type t = { cmp : Comparison.t; args : Operands.t } [@@deriving sexp, equal]
+    type t = { cmp : Comparison.t; args : Operands.t }
+    [@@deriving sexp, equal, hash]
 
     let parse_exn cmp ~src ~dst ~labels =
       let args = Operands.parse_exn ~src ~dst ~labels in
@@ -76,7 +86,7 @@ module Instruction = struct
     | Jump of { target : Imm_or_reg.t; cond : Condition.t option }
     | Set of Condition.t
     | Dump
-  [@@deriving sexp, equal]
+  [@@deriving sexp, equal, hash]
 
   let maybe_parse_exn line ~labels =
     let line = String.filter line ~f:(fun c -> not @@ Char.equal c ',') in
@@ -123,15 +133,15 @@ module Instruction = struct
 end
 
 module Segment = struct
-  type t = Data | Text [@@deriving sexp, equal]
+  type t = Data | Text [@@deriving sexp, equal, hash]
 end
 
 module Address = struct
-  type t = { segment : Segment.t; offset : int } [@@deriving sexp, equal]
+  type t = { segment : Segment.t; offset : int } [@@deriving sexp, equal, hash]
 end
 
 module Data = struct
-  type t = Const of int | Label of string [@@deriving sexp, equal]
+  type t = Const of int | Label of string [@@deriving sexp, equal, hash]
 end
 
 type t = {
