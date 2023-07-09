@@ -21,7 +21,7 @@ let references t =
   let add_all = Hash_set.iter ~f:(Hash_set.add set) in
   let add_assignment_refs = function
     | Expression.Variable.Memory exp -> add_all @@ Expression.references exp
-    | Local _ -> ()
+    | Named _ -> ()
   in
   let add_condition_refs cond = add_all @@ Expression.references (If cond) in
   (match t with

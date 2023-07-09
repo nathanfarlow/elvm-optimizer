@@ -1,7 +1,7 @@
 open Core
 module Insn = Eir.Instruction
 
-let lift_reg r : Expression.Variable.t = Local (Eir.Register.to_string r)
+let lift_reg r : Expression.Variable.t = Named (Eir.Register.to_string r)
 
 let lift_imm_or_reg (imm_or_reg : Insn.Imm_or_reg.t) : Expression.t =
   match imm_or_reg with

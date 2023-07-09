@@ -19,7 +19,7 @@ module rec M : sig
   end
 
   module Variable : sig
-    type t = Local of string | Memory of M.t [@@deriving sexp, equal, hash]
+    type t = Named of string | Memory of M.t [@@deriving sexp, equal, hash]
   end
 
   val equal : t -> t -> bool
@@ -45,7 +45,7 @@ end = struct
   end
 
   module Variable = struct
-    type t = Local of string | Memory of M.t [@@deriving sexp, equal, hash]
+    type t = Named of string | Memory of M.t [@@deriving sexp, equal, hash]
   end
 
   let rec equal a b =

@@ -12,13 +12,13 @@ let%test "constants not equal" =
   not (equal a b)
 
 let%test "same variables are equal" =
-  let a = Var (Local "A") in
-  let b = Var (Local "A") in
+  let a = Var (Named "A") in
+  let b = Var (Named "A") in
   equal a b
 
 let%test "different variables are not equal" =
-  let a = Var (Local "A") in
-  let b = Var (Local "B") in
+  let a = Var (Named "A") in
+  let b = Var (Named "B") in
   not @@ equal a b
 
 let%test "same memory is equal" =
