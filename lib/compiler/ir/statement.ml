@@ -18,4 +18,4 @@ type t =
   | Nop
 [@@deriving sexp, equal]
 
-let references = failwith "unimplemented"
+let references _ = failwith "unimplemented"

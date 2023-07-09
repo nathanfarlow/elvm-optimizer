@@ -310,10 +310,9 @@ let make_program statements =
 
 let filter_noops lines =
   let is_noop line =
-    String.is_empty line
-    || String.is_prefix line ~prefix:"#"
-    || String.is_prefix line ~prefix:".file"
-    || String.is_prefix line ~prefix:".loc"
+    let is_prefix prefix = String.is_prefix line ~prefix in
+    String.is_empty line || is_prefix "#" || is_prefix ".file"
+    || is_prefix ".loc"
   in
   List.map lines ~f:String.strip
   |> List.filter ~f:(fun line -> not @@ is_noop line)

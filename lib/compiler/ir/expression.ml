@@ -4,7 +4,7 @@ module rec M : sig
   end
 
   module Condition : sig
-    type t = { comp : Comparison.t; left : M.t; right : M.t }
+    type t = { cmp : Comparison.t; left : M.t; right : M.t }
     [@@deriving sexp, equal]
   end
 
@@ -27,7 +27,7 @@ end = struct
   end
 
   module Condition = struct
-    type t = { comp : Comparison.t; left : M.t; right : M.t }
+    type t = { cmp : Comparison.t; left : M.t; right : M.t }
     [@@deriving sexp, equal]
   end
 
@@ -42,6 +42,6 @@ end = struct
     | If of Condition.t
   [@@deriving sexp, equal]
 
-  let equal = failwith "unimplemented"
-  let references = failwith "unimplemented"
+  let equal _ _ = failwith "unimplemented"
+  let references _ = failwith "unimplemented"
 end
