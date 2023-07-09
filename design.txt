@@ -1,0 +1,40 @@
+Ir:
+    Data and a graph
+
+Data:
+    label
+    type t =
+    | Chunk of int list
+    | Heap_start
+    
+
+Graph:
+    Mapping from label to blocks
+
+Block:
+    Label, list of statements, a branch, and in edges
+
+Statement:
+    type t =
+    | Assign of (variable, expression)
+    | Putc of Expression.t
+    | Jump of jump
+    | Exit
+    | Nop
+    [@@deriving sexp, equal]
+
+    has hash function
+
+Expression:
+    type t =
+    | Const of int
+    | Label of string
+    | Variable of variable
+    | Add of t list
+    | Sub of t * t
+    | Getc
+    | Set of condition
+    [@@deriving sexp]
+    and variable = Memory of expression or register
+
+    has hash function
