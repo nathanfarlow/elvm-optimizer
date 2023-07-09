@@ -19,7 +19,8 @@ module rec M : sig
   end
 
   module Variable : sig
-    type t = Named of string | Memory of M.t [@@deriving sexp, equal, hash]
+    type t = Named of string | Memory of M.t | Register of Eir.Register.t
+    [@@deriving sexp, equal, hash]
   end
 
   val equal : t -> t -> bool
@@ -45,7 +46,8 @@ end = struct
   end
 
   module Variable = struct
-    type t = Named of string | Memory of M.t [@@deriving sexp, equal, hash]
+    type t = Named of string | Memory of M.t | Register of Eir.Register.t
+    [@@deriving sexp, equal, hash]
   end
 
   let rec equal a b =
@@ -78,16 +80,18 @@ end = struct
   let references t =
     let set = Hash_set.create (module String) in
     let rec aux = function
+      | Const _ -> ()
       | Label label -> Hash_set.add set label
       | Var (Memory addr) -> aux addr
+      | Var (Named _) | Var (Register _) -> ()
       | Add xs -> List.iter xs ~f:aux
       | Sub (x, y) ->
           aux x;
           aux y
+      | Getc -> ()
       | If { left; right; _ } ->
           aux left;
           aux right
-      | _ -> ()
     in
     aux t;
     set

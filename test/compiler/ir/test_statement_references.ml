@@ -35,3 +35,15 @@ let%expect_test "nop has no references" =
 let%expect_test "duplicate labels are removed" =
   references (Assign { dst = Memory (Label "foo"); src = Label "foo" }) |> print;
   [%expect {| (foo) |}]
+
+let%expect_test "push has references" =
+  references (Push (Label "foo")) |> print;
+  [%expect {| (foo) |}]
+
+let%expect_test "pop has references" =
+  references (Pop (Memory (Label "foo"))) |> print;
+  [%expect {| (foo) |}]
+
+let%expect_test "call has references" =
+  references (Call { label = "foo"; args = [ Label "bar" ] }) |> print;
+  [%expect {| (bar) |}]
