@@ -1,4 +1,3 @@
-open Core
 open Elvm.Compiler.Ir.Expression
 
 let%test "constants equal" =

@@ -1,21 +1,22 @@
-open Core
-open Elvm.Compiler.Ir.Expression
-open Elvm.Compiler.Ir.Statement
+module Expression = Elvm.Compiler.Ir.Expression
+module Statement = Elvm.Compiler.Ir.Statement
 
 let print refs =
   let sorted = Hash_set.to_list refs |> List.sort ~compare:String.compare in
   print_s [%sexp (sorted : string list)]
 
 let%expect_test "assign has references" =
-  references (Assign { dst = Memory (Label "foo"); src = Label "bar" }) |> print;
+  Statement.references
+    (Assign { dst = Memory (Label "foo"); src = Label "bar" })
+  |> print;
   [%expect {| (bar foo) |}]
 
 let%expect_test "putc has references" =
-  references (Putc (Label "foo")) |> print;
+  Statement.references (Putc (Label "foo")) |> print;
   [%expect {| (foo) |}]
 
 let%expect_test "jump has references" =
-  references
+  Statement.references
     (Jump
        {
          target = Label "foo";
@@ -25,25 +26,27 @@ let%expect_test "jump has references" =
   [%expect {| (bar baz foo) |}]
 
 let%expect_test "exit has no references" =
-  references Exit |> print;
+  Statement.references Exit |> print;
   [%expect {| () |}]
 
 let%expect_test "nop has no references" =
-  references Nop |> print;
+  Statement.references Nop |> print;
   [%expect {| () |}]
 
 let%expect_test "duplicate labels are removed" =
-  references (Assign { dst = Memory (Label "foo"); src = Label "foo" }) |> print;
+  Statement.references
+    (Assign { dst = Memory (Label "foo"); src = Label "foo" })
+  |> print;
   [%expect {| (foo) |}]
 
 let%expect_test "push has references" =
-  references (Push (Label "foo")) |> print;
+  Statement.references (Push (Label "foo")) |> print;
   [%expect {| (foo) |}]
 
 let%expect_test "pop has references" =
-  references (Pop (Memory (Label "foo"))) |> print;
+  Statement.references (Pop (Memory (Label "foo"))) |> print;
   [%expect {| (foo) |}]
 
 let%expect_test "call has references" =
-  references (Call { label = "foo"; args = [ Label "bar" ] }) |> print;
+  Statement.references (Call { label = "foo"; args = [ Label "bar" ] }) |> print;
   [%expect {| (bar) |}]

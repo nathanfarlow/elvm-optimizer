@@ -1,9 +1,9 @@
-open Core
-open Elvm.Compiler
+module Expression_optimizer = Elvm.Compiler.Optimizer.Expression_optimizer
+module Expression = Elvm.Compiler.Ir.Expression
 
-let optimizer = Optimizer.Expression_optimizer.create ()
-let print exp = print_s [%sexp (exp : Ir.Expression.t)]
-let optimize exp = Optimizer.Expression_optimizer.optimize optimizer exp |> fst
+let optimizer = Expression_optimizer.create ()
+let print exp = print_s [%sexp (exp : Expression.t)]
+let optimize exp = Expression_optimizer.optimize optimizer exp |> fst
 
 let%expect_test "const remains same" =
   optimize (Const 0) |> print;

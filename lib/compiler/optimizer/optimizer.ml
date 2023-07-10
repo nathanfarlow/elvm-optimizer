@@ -1,5 +1,6 @@
 module Optimizer_intf = Optimizer_intf
 module Expression_optimizer = Expression_optimizer
+module General_block_optimizer = General_block_optimizer
 module Statement_optimizer = Statement_optimizer
 module Inplace_optimizer_intf = Inplace_optimizer_intf
 

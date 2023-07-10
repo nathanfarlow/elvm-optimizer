@@ -19,8 +19,7 @@ let ir insns labels data = elvm insns labels data |> Compiler.lift
 
 let%expect_test "no insns is empty list" =
   ir [] [] [] |> print;
-  [%expect
-    {|
+  [%expect {|
       ()
       (((label __reserved_heap_base) (type_ Heap))) |}]
 
@@ -294,16 +293,14 @@ let%expect_test "text references are updated for label rewrite" =
 let%expect_test "program with no data with data labels has just heap" =
   let labels = [ ("a", { segment = Data; offset = 0 }) ] in
   ir [] labels [] |> print;
-  [%expect
-    {|
+  [%expect {|
       ()
       (((label __reserved_heap_base) (type_ Heap))) |}]
 
 let%expect_test "program with no insns with text labels has just heap" =
   let labels = [ ("a", { segment = Text; offset = 0 }) ] in
   ir [] labels [] |> print;
-  [%expect
-    {|
+  [%expect {|
       ()
       (((label __reserved_heap_base) (type_ Heap))) |}]
 

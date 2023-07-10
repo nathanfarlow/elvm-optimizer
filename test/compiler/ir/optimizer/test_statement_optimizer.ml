@@ -1,13 +1,13 @@
-open Core
-open Elvm.Compiler.Ir.Expression
-open Elvm.Compiler.Ir.Statement
-open Elvm.Compiler.Optimizer
-module Statement_optimizer = Statement_optimizer.Make (Expression_optimizer)
+module Expression = Elvm.Compiler.Ir.Expression
+module Statement = Elvm.Compiler.Ir.Statement
+module Optimizer = Elvm.Compiler.Optimizer
+module Expression_opt = Optimizer.Expression_optimizer
+module Statement_opt = Optimizer.Statement_optimizer.Make (Expression_opt)
 
-let optimizer = Statement_optimizer.create @@ Expression_optimizer.create ()
-let print stmt = print_s [%sexp (stmt : t)]
-let optimize stmt = Statement_optimizer.optimize optimizer stmt |> fst
-let ugly_exp = Add [ Const 1; Const 1 ]
+let optimizer = Statement_opt.create @@ Expression_opt.create ()
+let print stmt = print_s [%sexp (stmt : Statement.t)]
+let optimize stmt = Statement_opt.optimize optimizer stmt |> fst
+let ugly_exp = Expression.Add [ Const 1; Const 1 ]
 
 let%expect_test "optimizes assign dst and src" =
   optimize (Assign { dst = Memory ugly_exp; src = ugly_exp }) |> print;
@@ -31,14 +31,14 @@ let%expect_test "optimizes jump target" =
 
 let%expect_test "always true conditional jump is changed to unconditional" =
   let always_true =
-    Some Condition.{ cmp = Eq; left = ugly_exp; right = ugly_exp }
+    Some Expression.Condition.{ cmp = Eq; left = ugly_exp; right = ugly_exp }
   in
   optimize (Jump { target = ugly_exp; cond = always_true }) |> print;
   [%expect {| (Jump ((target (Const 2)) (cond ()))) |}]
 
 let%expect_test "always false conditional jump is changed to nop" =
   let always_false =
-    Some Condition.{ cmp = Ne; left = ugly_exp; right = ugly_exp }
+    Some Expression.Condition.{ cmp = Ne; left = ugly_exp; right = ugly_exp }
   in
   optimize (Jump { target = ugly_exp; cond = always_false }) |> print;
   [%expect {| Nop |}]
