@@ -1,5 +1,4 @@
-module Expression = Elvm.Compiler.Ir.Expression
-module Statement = Elvm.Compiler.Ir.Statement
+open Elvm.Compiler.Ir
 
 let print refs =
   let sorted = Hash_set.to_list refs |> List.sort ~compare:String.compare in

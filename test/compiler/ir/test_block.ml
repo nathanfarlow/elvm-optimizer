@@ -1,4 +1,4 @@
-module Block = Elvm.Compiler.Ir.Block
+open Elvm.Compiler.Ir
 
 let print_refs refs =
   let sorted = Hash_set.to_list refs |> List.sort ~compare:String.compare in

@@ -1,5 +1,5 @@
-module Expression_optimizer = Elvm.Compiler.Optimizer.Expression_optimizer
-module Expression = Elvm.Compiler.Ir.Expression
+open Elvm.Compiler.Ir
+open Elvm.Compiler.Optimizer
 
 let optimizer = Expression_optimizer.create ()
 let print exp = print_s [%sexp (exp : Expression.t)]

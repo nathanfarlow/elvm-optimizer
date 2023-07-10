@@ -1,12 +1,10 @@
-module Optimizer = Elvm.Compiler.Optimizer
-module Expression_opt = Optimizer.Expression_optimizer
-module Statement_opt = Optimizer.Statement_optimizer.Make (Expression_opt)
-module Block_opt = Optimizer.General_block_optimizer.Make (Statement_opt)
-module Block = Elvm.Compiler.Ir.Block
-module Statement = Elvm.Compiler.Ir.Statement
+open Elvm.Compiler.Ir
+open Elvm.Compiler.Optimizer
+module Statement_opt = Statement_optimizer.Make (Expression_optimizer)
+module Block_opt = General_block_optimizer.Make (Statement_opt)
 
 let optimizer =
-  Expression_opt.create () |> Statement_opt.create |> Block_opt.create
+  Expression_optimizer.create () |> Statement_opt.create |> Block_opt.create
 
 let print_block result = print_s [%sexp (result : Block.t)]
 let optimize = Block_opt.optimize optimizer
