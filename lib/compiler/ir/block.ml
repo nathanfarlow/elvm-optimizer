@@ -8,7 +8,7 @@ module rec M : sig
   [@@deriving sexp, equal]
 
   module Edge : sig
-    type type_ = Jump | Fallthrough [@@deriving sexp, equal, hash]
+    type type_ = Jump | Fallthrough | Call [@@deriving sexp, equal, hash]
     type t = { label : string; type_ : type_ } [@@deriving sexp, equal, hash]
   end
 
@@ -17,6 +17,7 @@ module rec M : sig
       | Conditional_jump of { true_ : M.t; false_ : M.t }
       | Unconditional_jump of M.t
       | Fallthrough of M.t
+      | Call of M.t
     [@@deriving sexp, equal]
   end
 
@@ -32,7 +33,7 @@ end = struct
   [@@deriving sexp, equal]
 
   module Edge = struct
-    type type_ = Jump | Fallthrough [@@deriving sexp, equal, hash]
+    type type_ = Jump | Fallthrough | Call [@@deriving sexp, equal, hash]
     type t = { label : string; type_ : type_ } [@@deriving sexp, equal, hash]
   end
 
@@ -41,6 +42,7 @@ end = struct
       | Conditional_jump of { true_ : M.t; false_ : M.t }
       | Unconditional_jump of M.t
       | Fallthrough of M.t
+      | Call of M.t
     [@@deriving sexp, equal]
   end
 
