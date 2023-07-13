@@ -1,1 +1,0 @@
-let f (_eir : Ir.t) : Eir.t = failwith "unimplemented"

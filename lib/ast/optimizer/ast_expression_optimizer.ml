@@ -1,4 +1,4 @@
-open Expression
+open Ast_expression
 
 type t = unit
 
@@ -7,7 +7,6 @@ let rec optimize t = Optimizer_util.optimize_until_unchanging (optimize' t)
 and optimize' t = function
   | Const _ as e -> (e, false)
   | Label _ as e -> (e, false)
-  | Var (Named _) as e -> (e, false)
   | Var (Register _) as e -> (e, false)
   | Var (Memory addr) ->
       let addr, did_change = optimize t addr in
@@ -15,39 +14,32 @@ and optimize' t = function
   | Add xs -> optimize_add t xs
   | Sub (a, b) -> optimize_sub t a b
   | Getc -> (Getc, false)
-  | If { cmp; left; right } -> optimize_set t cmp left right
+  | If { cmp; left; right } -> optimize_if t cmp left right
 
 and optimize_add t xs =
-  (* flatten adds *)
+  let xs, xs_changed = List.map xs ~f:(optimize t) |> List.unzip in
+  let xs_changed = List.exists xs_changed ~f:Fn.id in
+  (* flatten nested adds *)
   let xs = List.concat_map xs ~f:(function Add xs -> xs | x -> [ x ]) in
   match xs with
   | [] -> (Const 0, true)
-  | [ x ] -> optimize t x
+  | [ x ] -> (x, true)
   | _ ->
+      (* constant folding *)
       let consts, non_consts =
         List.partition_tf ~f:(function Const _ -> true | _ -> false) xs
       in
-      (* flatten constants *)
-      let constant_sum =
+      let const_sum =
         List.fold consts ~init:0 ~f:(fun acc -> function
           | Const x -> acc + x | _ -> assert false)
       in
-      let did_constants_change =
-        (* don't add with 0 *)
-        (constant_sum = 0 && List.length consts >= 1)
-        (* simplified more than one constant to 1 *)
-        || List.length consts > 1
-      in
-      (* optimize non constants *)
-      let non_consts, non_consts_changes =
-        List.map non_consts ~f:(optimize t) |> List.unzip
-      in
-      let did_others_change = List.exists non_consts_changes ~f:Fn.id in
       let optimized_terms =
-        if constant_sum = 0 then Add non_consts
-        else Add (Const constant_sum :: non_consts)
+        (if const_sum = 0 then non_consts else Const const_sum :: non_consts)
+        (* sort to maintain canonical order *)
+        |> List.sort ~compare
       in
-      (optimized_terms, did_others_change || did_constants_change)
+      let did_delete_consts = List.length optimized_terms <> List.length xs in
+      (Add optimized_terms, xs_changed || did_delete_consts)
 
 and optimize_sub t a b =
   let a, a_changed = optimize t a in
@@ -59,7 +51,7 @@ and optimize_sub t a b =
   | _ when equal a b -> (Const 0, true)
   | _ -> (Sub (a, b), a_changed || b_changed)
 
-and optimize_set t cmp left right =
+and optimize_if t cmp left right =
   let left, left_changed = optimize t left in
   let right, right_changed = optimize t right in
   match (left, right) with
@@ -71,7 +63,7 @@ and optimize_set t cmp left right =
         | Lt -> left < right
         | Le -> left <= right
       in
-      (Const (if cmp_result then 1 else 0), true)
+      (Const (Bool.to_int cmp_result), true)
   | _ -> (
       let equal = equal left right in
       match cmp with
