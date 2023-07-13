@@ -3,7 +3,6 @@ module Data = struct
   type t = { label : string; type_ : type_ } [@@deriving sexp, equal, hash]
 end
 
-type t = { blocks : (string, Block.t) Hashtbl.t; data : Data.t list }
-[@@deriving fields]
+type 'a t = { graph : 'a Graph.t; data : Data.t list }
 
-let create blocks data = { blocks; data }
+let create graph data = { graph; data }

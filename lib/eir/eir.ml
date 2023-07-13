@@ -1,7 +1,7 @@
 open Core
 
 module Register = struct
-  type t = A | B | C | D | SP | BP [@@deriving sexp, equal, hash]
+  type t = A | B | C | D | SP | BP [@@deriving sexp, equal, compare, hash]
 
   let maybe_parse = function
     | "A" -> Some A

@@ -1,7 +1,7 @@
 type t
 
 module Register : sig
-  type t = A | B | C | D | SP | BP [@@deriving sexp, equal, hash]
+  type t = A | B | C | D | SP | BP [@@deriving sexp, equal, compare, hash]
 
   val to_string : t -> string
 end
