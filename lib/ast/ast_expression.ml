@@ -1,27 +1,51 @@
-module rec T : sig
+module rec Expression : sig
   type t =
     | Const of int
     | Label of string
-    | Var of T.Variable.t
+    | Var of Variable.t
     | Add of t list
     | Sub of t * t
     | Getc
-    | If of T.Condition.t
+    | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  module Comparison : sig
-    type t = Eq | Ne | Lt | Le [@@deriving sexp, equal, compare, hash]
-  end
+  include
+    Forward_expression_intf.S with type t := t and type variable := Variable.t
+end = struct
+  type t =
+    | Const of int
+    | Label of string
+    | Var of Variable.t
+    | Add of t list
+    | Sub of t * t
+    | Getc
+    | If of Condition.t
+  [@@deriving sexp, equal, compare, hash]
 
-  module Condition : sig
-    type t = { cmp : Comparison.t; left : T.t; right : T.t }
-    [@@deriving sexp, equal, compare, hash]
-  end
+  let contains_var _t _var = failwith "todo"
+end
 
-  module Variable : sig
-    type t = Register of Eir.Register.t | Memory of T.t
-    [@@deriving sexp, equal, compare, hash]
-  end
-end = T
+and Comparison : sig
+  type t = Eq | Ne | Lt | Le [@@deriving sexp, equal, compare, hash]
+end =
+  Comparison
 
-include T
+and Condition : sig
+  type t = { cmp : Comparison.t; left : Expression.t; right : Expression.t }
+  [@@deriving sexp, equal, compare, hash]
+end =
+  Condition
+
+and Variable : sig
+  type t = Register of Eir.Register.t | Memory of Expression.t
+  [@@deriving sexp, equal, compare, hash]
+
+  include Forward_variable_intf.S with type t := t
+end = struct
+  type t = Register of Eir.Register.t | Memory of Expression.t
+  [@@deriving sexp, equal, compare, hash]
+
+  let contains_var _t _var = failwith "todo"
+end
+
+include Expression
