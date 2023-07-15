@@ -187,7 +187,7 @@ let make_graph statements out_edges =
   (* create nodes without edges *)
   let nodes = Hashtbl.create (module String) in
   Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
-      let node = Node.{ label; stmt; references = []; branch = None } in
+      let node = Node.create ~label ~stmt in
       Hashtbl.add_exn nodes ~key:label ~data:node);
 
   (* fill in node references with reverse mapping of out_edges *)
@@ -195,11 +195,11 @@ let make_graph statements out_edges =
       let from = Hashtbl.find_exn nodes from in
       List.iter to_ ~f:(fun (label, type_) ->
           let node = Hashtbl.find_exn nodes label in
-          node.references <- Node.Reference.{ from; type_ } :: node.references));
+          Node.add_reference node Node.Reference.{ from; type_ }));
 
   (* fill in branches *)
   Hashtbl.iteri nodes ~f:(fun ~key:label ~data:node ->
-      node.branch <-
+      Node.set_branch node
         (match Hashtbl.find out_edges label with
         | None -> None
         | Some [ (label, Node.Reference.Fallthrough) ] ->

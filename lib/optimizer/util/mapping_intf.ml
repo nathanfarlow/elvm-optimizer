@@ -8,4 +8,5 @@ module type S = sig
   val update : t -> key -> value -> update_result
   val merge : t -> t -> t
   val get : t -> key -> value option
+  val to_alist : t -> (key * value) list
 end

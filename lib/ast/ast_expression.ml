@@ -9,8 +9,7 @@ module rec Expression : sig
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  include
-    Forward_expression_intf.S with type t := t and type variable := Variable.t
+  include Rhs_intf.S with type t := t and type lhs := Variable.t
 end = struct
   type t =
     | Const of int
@@ -22,7 +21,8 @@ end = struct
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  let contains_var _t _var = failwith "todo"
+  let contains _t _other = failwith "todo"
+  let substitute _t _var _expr = failwith "todo"
 end
 
 and Comparison : sig
@@ -40,12 +40,13 @@ and Variable : sig
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
-  include Forward_variable_intf.S with type t := t
+  include Lhs_intf.S with type t := t and type rhs := Expression.t
 end = struct
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
-  let contains_var _t _var = failwith "todo"
+  let contains _t _other = failwith "todo"
+  let substitute _t _var _expr = failwith "todo"
 end
 
 include Expression
