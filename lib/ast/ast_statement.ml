@@ -51,8 +51,20 @@ end = struct
 
   let nop = Nop
   let from_mapping { from; to_ } = Assign { dst = from; src = to_ }
-  let substitute _t _ = failwith "todo"
-  let get_mapping_from_assignment _t = failwith "todo"
+
+  let substitute t { from; to_ } =
+    match t with
+    | Assign { dst; src } ->
+        let dst, dst_changed =
+          Ast_expression.Variable.substitute dst ~from ~to_
+        in
+        let src, src_changed = Ast_expression.substitute src ~from ~to_ in
+        (Assign { dst; src }, dst_changed || src_changed)
+    | _ -> failwith "guh"
+
+  let get_mapping_from_assignment = function
+    | Assign { dst; src } -> Some { from = dst; to_ = src }
+    | _ -> None
 end
 
 include T
