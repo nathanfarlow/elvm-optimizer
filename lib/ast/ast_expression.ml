@@ -10,6 +10,8 @@ module rec Expression : sig
   [@@deriving sexp, equal, compare, hash]
 
   include Propagator_rhs_intf.S with type t := t and type lhs := Variable.t
+
+  val substitute : t -> from:Variable.t -> to_:t -> t * bool
 end = struct
   type t =
     | Const of int
@@ -20,6 +22,30 @@ end = struct
     | Getc
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
+
+  let rec substitute t ~from ~to_ =
+    match t with
+    | Const _ | Label _ | Getc -> (t, false)
+    | Var v ->
+        let v, changed = Variable.substitute v ~from ~to_ in
+        (Var v, changed)
+    | Add ts ->
+        let changed, ts =
+          List.fold_map ts ~init:false ~f:(fun changed t ->
+              let t, t_changed = substitute t ~from ~to_ in
+              (changed || t_changed, t))
+        in
+        (* sort to maintain canonical order *)
+        let ts = List.sort ts ~compare in
+        (Add ts, changed)
+    | Sub (t1, t2) ->
+        let t1, t1_changed = substitute t1 ~from ~to_ in
+        let t2, t2_changed = substitute t2 ~from ~to_ in
+        (Sub (t1, t2), t1_changed || t2_changed)
+    | If { cmp; left; right } ->
+        let left, left_changed = substitute left ~from ~to_ in
+        let right, right_changed = substitute right ~from ~to_ in
+        (If { cmp; left; right }, left_changed || right_changed)
 
   let rec contains t var =
     match t with
@@ -46,9 +72,18 @@ and Variable : sig
   [@@deriving sexp, equal, compare, hash]
 
   include Propagator_lhs_intf.S with type t := t
+
+  val substitute : t -> from:t -> to_:Expression.t -> t * bool
 end = struct
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
+
+  let substitute t ~from ~to_ =
+    match t with
+    | Register _ -> (t, false)
+    | Memory expr ->
+        let expr, expr_changed = Expression.substitute expr ~from ~to_ in
+        (Memory expr, expr_changed)
 
   let contains t var =
     match t with
