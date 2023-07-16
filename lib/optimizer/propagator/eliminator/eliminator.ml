@@ -14,7 +14,7 @@ module Make
     include Statement
 
     let substitute t { from; to_ } =
-      Statement.substitute_rev t ~from:to_ ~to_:from
+      Statement.substitute_reverse t ~from:to_ ~to_:from
   end
 
   include Propagator.Make (Statement_wrapper) (Lhs) (Rhs)

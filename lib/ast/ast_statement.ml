@@ -22,6 +22,13 @@ module T : sig
       with type t := t
        and type lhs := Ast.Variable.t
        and type rhs := Ast.Expression.t
+
+  include
+    Eliminator_statement_intf.S
+      with type t := t
+       and type lhs := Ast.Variable.t
+       and type rhs := Ast.Expression.t
+       and type mapping := mapping
 end = struct
   module Assignment = struct
     type t = { dst : Ast.Variable.t; src : Ast.Expression.t }
@@ -46,13 +53,32 @@ end = struct
   let nop = Nop
   let from_mapping { from; to_ } = Assign { dst = from; src = to_ }
 
-  let substitute t { from; to_ } =
-    match t with
+  let substitute_exp ~from ~to_ = function
     | Assign { dst; src } ->
         let dst, dst_changed = Ast.Variable.substitute dst ~from ~to_ in
         let src, src_changed = Ast.Expression.substitute src ~from ~to_ in
         (Assign { dst; src }, dst_changed || src_changed)
-    | _ -> failwith "guh"
+    | Putc e ->
+        let e, changed = Ast.Expression.substitute e ~from ~to_ in
+        (Putc e, changed)
+    | Jump { target; cond } ->
+        let target, changed = Ast.Expression.substitute target ~from ~to_ in
+        let cond, cond_changed =
+          Option.value_map cond ~default:(None, false) ~f:(fun cond ->
+              let cond, changed = Ast.Condition.substitute cond ~from ~to_ in
+              (Some cond, changed))
+        in
+        (Jump { target; cond }, changed || cond_changed)
+    | Exit -> (Exit, false)
+    | Nop -> (Nop, false)
+
+  let substitute t { from; to_ } =
+    let from = Ast.Expression.Var from in
+    substitute_exp t ~from ~to_
+
+  let substitute_reverse t ~from ~to_ =
+    let to_ = Ast.Expression.Var to_ in
+    substitute_exp t ~from ~to_
 
   let get_mapping_from_assignment = function
     | Assign { dst; src } -> Some { from = dst; to_ = src }
