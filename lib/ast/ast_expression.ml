@@ -9,7 +9,7 @@ module rec Expression : sig
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  include Rhs_intf.S with type t := t and type lhs := Variable.t
+  include Propagator_rhs_intf.S with type t := t and type lhs := Variable.t
 end = struct
   type t =
     | Const of int
@@ -21,7 +21,13 @@ end = struct
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  let contains _t _lhs = failwith "todo"
+  let rec contains t var =
+    match t with
+    | Const _ | Label _ | Getc -> false
+    | Var v -> Variable.equal v var
+    | Add ts -> List.exists ts ~f:(fun t -> contains t var)
+    | Sub (t1, t2) -> contains t1 var || contains t2 var
+    | If { left; right; _ } -> contains left var || contains right var
 end
 
 and Comparison : sig
@@ -39,12 +45,15 @@ and Variable : sig
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
-  include Lhs_intf.S with type t := t
+  include Propagator_lhs_intf.S with type t := t
 end = struct
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
-  let contains _t _other = failwith "todo"
+  let contains t var =
+    match t with
+    | Register _ -> false
+    | Memory expr -> Expression.contains expr var
 end
 
 include Expression

@@ -1,7 +1,9 @@
 module Make
-    (Statement : Prop_statement_intf.S)
-    (Lhs : Lhs_intf.S with type t = Statement.lhs)
-    (Rhs : Rhs_intf.S with type t = Statement.rhs and type lhs := Statement.lhs) : sig
+    (Statement : Propagator_statement_intf.S)
+    (Lhs : Propagator_lhs_intf.S with type t = Statement.lhs)
+    (Rhs : Propagator_rhs_intf.S
+             with type t = Statement.rhs
+              and type lhs := Statement.lhs) : sig
   type t
 
   val create : unit -> t
@@ -11,7 +13,7 @@ module Make
       with type t := t
        and type target := Statement.t Graph.t
 end = struct
-  module Mapping = Mapping.Make (Lhs) (Rhs)
+  module Mapping = Propagator_mapping.Make (Lhs) (Rhs)
 
   type t = unit
 
@@ -28,9 +30,19 @@ end = struct
     in
     g
 
+  let substitute_all stmt mappings =
+    let mappings = Mapping.to_alist mappings in
+    List.fold mappings ~init:(stmt, false) ~f:(fun acc (left, right) ->
+        let stmt, has_substituted_already = acc in
+        let stmt, just_substituted =
+          Statement.substitute stmt { from = left; to_ = right }
+        in
+        (stmt, has_substituted_already || just_substituted))
+
   let get_end_mappings get_prelim_mappings node =
     let prelim = get_prelim_mappings node in
-    match Statement.get_mapping_from_assignment (Node.stmt node) with
+    let stmt, _ = substitute_all (Node.stmt node) prelim in
+    match Statement.get_mapping_from_assignment stmt with
     | Some { from; to_ } -> (Mapping.update prelim ~from ~to_).valid
     | None -> prelim
 
@@ -60,24 +72,14 @@ end = struct
     | None -> (prelim, false)
 
   let update_statement node mappings =
-    let updated_stmt, did_update =
-      List.fold
-        (Mapping.to_alist mappings)
-        ~init:(Node.stmt node, false)
-        ~f:(fun acc (left, right) ->
-          let stmt, has_substituted_already = acc in
-          let stmt, just_substituted =
-            Statement.substitute stmt { from = left; to_ = right }
-          in
-          (stmt, has_substituted_already || just_substituted))
-    in
+    let updated_stmt, did_update = substitute_all (Node.stmt node) mappings in
     Node.set_stmt node updated_stmt;
     did_update
 
   let optimize_node graph (node : Statement.t Node.t) =
     let prelim = get_prelim_mappings node in
-    let mappings, did_prepend = invalidate_mappings graph node prelim in
-    let did_update = update_statement node mappings in
+    let did_update = update_statement node prelim in
+    let _, did_prepend = invalidate_mappings graph node prelim in
     did_prepend || did_update
 
   let optimize _ graph =
