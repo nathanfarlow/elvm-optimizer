@@ -3,7 +3,6 @@ module type S = sig
   type lhs
 
   val contains : t -> lhs -> bool
-  val substitute : t -> lhs -> t -> t
 
   include Equal.S with type t := t
 end
