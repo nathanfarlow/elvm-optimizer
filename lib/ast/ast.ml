@@ -90,5 +90,3 @@ end = struct
     | Register _ -> false
     | Memory expr -> Expression.contains expr var
 end
-
-include Expression

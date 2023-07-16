@@ -1,14 +1,14 @@
 module Make
     (Expression_optimizer : Optimizer_intf.S
-                              with type target := Ast_expression.t) =
+                              with type target := Ast.Expression.t) =
 struct
   type t = Expression_optimizer.t
 
   (* todo eliminate this duplicate logic *)
   let optimize_variable optimize_exp = function
-    | Ast_expression.Variable.Memory exp ->
+    | Ast.Variable.Memory exp ->
         let exp, changed = optimize_exp exp in
-        (Ast_expression.Variable.Memory exp, changed)
+        (Ast.Variable.Memory exp, changed)
     | Register _ as e -> (e, false)
 
   let optimize' optimize_exp = function
