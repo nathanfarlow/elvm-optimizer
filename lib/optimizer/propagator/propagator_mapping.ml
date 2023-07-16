@@ -1,6 +1,6 @@
 module Make
-    (Lhs : Propagator_lhs_intf.S)
-    (Rhs : Propagator_rhs_intf.S with type lhs := Lhs.t) =
+    (Lhs : Propagator_var_intf.S)
+    (Rhs : Propagator_exp_intf.S with type var := Lhs.t) =
 struct
   module Lhs_map = Map.Make (Lhs)
 

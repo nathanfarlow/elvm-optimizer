@@ -1,10 +1,9 @@
-open Ast.Expression
-
 type t = unit
 
 let rec optimize t = Optimizer_util.optimize_until_unchanging (optimize' t)
 
-and optimize' t = function
+and optimize' t (e : Ast.Expression.t) =
+  match e with
   | Const _ as e -> (e, false)
   | Label _ as e -> (e, false)
   | Var (Register _) as e -> (e, false)
@@ -36,7 +35,7 @@ and optimize_add t xs =
       let optimized_terms =
         (if const_sum = 0 then non_consts else Const const_sum :: non_consts)
         (* sort to maintain canonical order *)
-        |> List.sort ~compare
+        |> List.sort ~compare:Ast.Expression.compare
       in
       let did_delete_consts = List.length optimized_terms <> List.length xs in
       (Add optimized_terms, xs_changed || did_delete_consts)
@@ -48,7 +47,7 @@ and optimize_sub t a b =
   | Const a, Const b -> (Const (a - b), true)
   | a, Const b when b = 0 -> (a, true)
   | a, Const b -> (Add [ a; Const (-b) ], true)
-  | _ when equal a b -> (Const 0, true)
+  | _ when Ast.Expression.equal a b -> (Const 0, true)
   | _ -> (Sub (a, b), a_changed || b_changed)
 
 and optimize_if t cmp left right =
@@ -65,7 +64,7 @@ and optimize_if t cmp left right =
       in
       (Const (Bool.to_int cmp_result), true)
   | _ -> (
-      let equal = equal left right in
+      let equal = Ast.Expression.equal left right in
       match cmp with
       | Eq when equal -> (Const 1, true)
       | Ne when equal -> (Const 0, true)

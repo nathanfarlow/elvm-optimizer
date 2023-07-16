@@ -1,10 +1,8 @@
 module Insn = Eir.Instruction
-module Expression = Ast.Expression
-module Statement = Ast_statement
 
 let lift_reg r = Ast.Variable.Register r
 
-let lift_imm_or_reg (imm_or_reg : Insn.Imm_or_reg.t) : Expression.t =
+let lift_imm_or_reg (imm_or_reg : Insn.Imm_or_reg.t) : Ast.Expression.t =
   match imm_or_reg with
   | Int x -> Const x
   | Register x -> Var (lift_reg x)
@@ -21,7 +19,7 @@ let lift_cond Insn.Condition.{ cmp; args } : Ast.Condition.t =
   | Gt -> { cmp = Le; left = right; right = left }
   | Ge -> { cmp = Lt; left = right; right = left }
 
-let lift_insn (insn : Insn.t) : Statement.t =
+let lift_insn (insn : Insn.t) : Ast_statement.t =
   match insn with
   | Mov { dst; src } ->
       let src = lift_imm_or_reg src in
@@ -30,7 +28,7 @@ let lift_insn (insn : Insn.t) : Statement.t =
       let src = lift_imm_or_reg src in
       let dst = lift_reg dst in
       (* sort to maintain canonical order *)
-      let args = Expression.(List.sort [ Var dst; src ] ~compare) in
+      let args = Ast.Expression.(List.sort [ Var dst; src ] ~compare) in
       Assign { dst; src = Add args }
   | Sub { dst; src } ->
       let src = lift_imm_or_reg src in
@@ -106,24 +104,15 @@ let fresh_label prefix eir =
   in
   loop
 
-(* Replace jmp int with jmp label. Also, every instruction now
-   has at least one corresponding label. *)
-let remove_jmp_int eir =
+let add_labels_to_every_instruction eir =
   let fresh = fresh_label "__L" eir in
-  let int_labels =
-    Array.init (List.length @@ Eir.insns eir) ~f:(fun _ -> fresh ())
-  in
-  let insns =
-    List.map (Eir.insns eir) ~f:(function
-      | Jump { target = Int n; cond } ->
-          let target = Insn.Imm_or_reg.Label int_labels.(n) in
-          Insn.Jump { target; cond }
-      | insn -> insn)
-  in
+  let num_insns = List.length (Eir.insns eir) in
   let labels = Hashtbl.copy (Eir.labels eir) in
-  Array.iteri int_labels ~f:(fun i label ->
-      Hashtbl.add_exn labels ~key:label ~data:{ segment = Text; offset = i });
-  Eir.create ~insns ~labels ~data:(Eir.data eir)
+  for i = 0 to num_insns - 1 do
+    let label = fresh () in
+    Hashtbl.add_exn labels ~key:label ~data:{ segment = Text; offset = i }
+  done;
+  Eir.create ~insns:(Eir.insns eir) ~labels ~data:(Eir.data eir)
 
 let rec make_offset_to_label_mapping eir segment =
   let exception Eir_changed of Eir.t in
@@ -175,8 +164,8 @@ let make_statement_edges eir pc_to_label =
             | Label target_label ->
                 Hashtbl.add_multi out_edges ~key:label ~data:(target_label, Jump)
             | Register _ -> ()
-            (* these should have already been replaced with jump label *)
-            | Int _ -> assert false);
+            | Int _ ->
+                failwith "jump int is undefined. replace it with jump label.");
             Option.map cond ~f:(fun _ -> label)
         | Exit -> None
         | _ -> Some label);
@@ -243,10 +232,10 @@ let make_data eir offset_to_label =
   else [ heap_entry ]
 
 let f eir =
-  let eir = remove_jmp_int eir in
+  let eir = add_labels_to_every_instruction eir in
   let eir, pc_to_label = make_offset_to_label_mapping eir Text in
   let eir, data_to_label = make_offset_to_label_mapping eir Data in
   let statements, out_edges = make_statement_edges eir pc_to_label in
   let graph = make_graph statements out_edges in
   let data = make_data eir data_to_label in
-  Program.{ graph; data }
+  Program.create ~graph ~data

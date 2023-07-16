@@ -17,17 +17,19 @@ module T : sig
     | Nop
   [@@deriving sexp, equal, compare, hash]
 
+  include Statement_intf.S with type t := t
+
   include
     Propagator_statement_intf.S
       with type t := t
-       and type lhs := Ast.Variable.t
-       and type rhs := Ast.Expression.t
+       and type var := Ast.Variable.t
+       and type exp := Ast.Expression.t
 
   include
     Eliminator_statement_intf.S
       with type t := t
-       and type lhs := Ast.Variable.t
-       and type rhs := Ast.Expression.t
+       and type var := Ast.Variable.t
+       and type exp := Ast.Expression.t
        and type mapping := mapping
 end = struct
   module Assignment = struct
@@ -50,7 +52,17 @@ end = struct
 
   type mapping = { from : Ast.Variable.t; to_ : Ast.Expression.t }
 
+  let is_nop = equal Nop
   let nop = Nop
+
+  let branch_type = function
+    | Exit -> None
+    | Assign _ | Putc _ | Nop -> Some Statement_intf.Branch_type.Fallthrough
+    | Jump { cond = None; _ } ->
+        Some Statement_intf.Branch_type.Unconditional_jump
+    | Jump { cond = Some _; _ } ->
+        Some Statement_intf.Branch_type.Conditional_jump
+
   let from_mapping { from; to_ } = Assign { dst = from; src = to_ }
 
   let substitute ~from ~to_ = function
@@ -72,11 +84,11 @@ end = struct
     | Exit -> (Exit, false)
     | Nop -> (Nop, false)
 
-  let substitute_lhs_to_rhs t ~from ~to_ =
+  let substitute_var_to_exp t ~from ~to_ =
     let from = Ast.Expression.Var from in
     substitute t ~from ~to_
 
-  let substitute_rhs_to_lhs t ~from ~to_ =
+  let substitute_exp_to_var t ~from ~to_ =
     let to_ = Ast.Expression.Var to_ in
     substitute t ~from ~to_
 

@@ -5,4 +5,4 @@ end
 
 type 'a t = { graph : 'a Graph.t; data : Data.t list }
 
-let create graph data = { graph; data }
+let create ~graph ~data = { graph; data }
