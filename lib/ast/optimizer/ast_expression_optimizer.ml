@@ -1,4 +1,4 @@
-open Ast_expression
+open Ast.Expression
 
 type t = unit
 
@@ -58,7 +58,7 @@ and optimize_if t cmp left right =
   | Const left, Const right ->
       let cmp_result =
         match cmp with
-        | Comparison.Eq -> left = right
+        | Ast.Comparison.Eq -> left = right
         | Ne -> left <> right
         | Lt -> left < right
         | Le -> left <= right

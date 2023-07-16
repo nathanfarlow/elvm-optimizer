@@ -1,8 +1,8 @@
 module Insn = Eir.Instruction
-module Expression = Ast_expression
+module Expression = Ast.Expression
 module Statement = Ast_statement
 
-let lift_reg r = Expression.Variable.Register r
+let lift_reg r = Ast.Variable.Register r
 
 let lift_imm_or_reg (imm_or_reg : Insn.Imm_or_reg.t) : Expression.t =
   match imm_or_reg with
@@ -10,7 +10,7 @@ let lift_imm_or_reg (imm_or_reg : Insn.Imm_or_reg.t) : Expression.t =
   | Register x -> Var (lift_reg x)
   | Label x -> Label x
 
-let lift_cond Insn.Condition.{ cmp; args } : Expression.Condition.t =
+let lift_cond Insn.Condition.{ cmp; args } : Ast.Condition.t =
   let left = lift_imm_or_reg (Register args.dst) in
   let right = lift_imm_or_reg args.src in
   match cmp with
