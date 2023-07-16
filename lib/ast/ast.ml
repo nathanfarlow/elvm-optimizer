@@ -58,8 +58,9 @@ end
 
 and Comparison : sig
   type t = Eq | Ne | Lt | Le [@@deriving sexp, equal, compare, hash]
-end =
-  Comparison
+end = struct
+  type t = Eq | Ne | Lt | Le [@@deriving sexp, equal, compare, hash]
+end
 
 and Condition : sig
   type t = { cmp : Comparison.t; left : Expression.t; right : Expression.t }
