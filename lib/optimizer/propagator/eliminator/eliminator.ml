@@ -13,8 +13,8 @@ module Make
   end = struct
     include Statement
 
-    let substitute t { from; to_ } =
-      Statement.substitute_reverse t ~from:to_ ~to_:from
+    let substitute_lhs_to_rhs t ~from ~to_ =
+      Statement.substitute_rhs_to_lhs t ~from:to_ ~to_:from
   end
 
   include Propagator.Make (Statement_wrapper) (Lhs) (Rhs)
