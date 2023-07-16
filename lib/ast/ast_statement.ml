@@ -21,7 +21,7 @@ module T : sig
   [@@deriving sexp, equal, compare, hash]
 
   include
-    Prop_statement_intf.S
+    Propagator_statement_intf.S
       with type t := t
        and type lhs := Ast_expression.Variable.t
        and type rhs := Ast_expression.t
