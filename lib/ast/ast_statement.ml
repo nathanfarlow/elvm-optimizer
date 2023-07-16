@@ -53,7 +53,7 @@ end = struct
   let nop = Nop
   let from_mapping { from; to_ } = Assign { dst = from; src = to_ }
 
-  let substitute_exp ~from ~to_ = function
+  let substitute ~from ~to_ = function
     | Assign { dst; src } ->
         let dst, dst_changed = Ast.Variable.substitute dst ~from ~to_ in
         let src, src_changed = Ast.Expression.substitute src ~from ~to_ in
@@ -74,11 +74,11 @@ end = struct
 
   let substitute_lhs_to_rhs t ~from ~to_ =
     let from = Ast.Expression.Var from in
-    substitute_exp t ~from ~to_
+    substitute t ~from ~to_
 
   let substitute_rhs_to_lhs t ~from ~to_ =
     let to_ = Ast.Expression.Var to_ in
-    substitute_exp t ~from ~to_
+    substitute t ~from ~to_
 
   let get_mapping_from_assignment = function
     | Assign { dst; src } -> Some { from = dst; to_ = src }
