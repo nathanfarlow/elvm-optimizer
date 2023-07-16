@@ -1,337 +1,308 @@
 open Elvm
-module Graph_tests = Graph.For_tests (Ast_statement)
+module Program_tests = Program.For_tests (Ast_statement)
 
-let print program =
-  (* sexp Program.data program, which is a Program.Data list*)
-  let data = Program.data program in
-  print_s [%sexp (data : Program.Data.t list)];
-  print_string @@ Graph_tests.to_string (Program.graph program)
+let print program = Program_tests.to_string program |> print_endline
 
-let elvm insns labels data =
+let eeir insns labels data =
   let labels = Hashtbl.of_alist_exn (module String) labels in
   Eir.create ~insns ~labels ~data
 
-let ir insns labels data = elvm insns labels data |> Eir_lift_to_ast.f
+let eir insns labels data = eeir insns labels data |> Eir_lift_to_ast.f
 
 let%expect_test "no insns is empty list" =
-  ir [] [] [] |> print;
-  [%expect {|(((label __reserved_heap_base) (type_ Heap))) |}]
+  eir [] [] [] |> print;
+  [%expect {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap))) |}]
 
 let%expect_test "mov is lifted correctly" =
-  ir [ Mov { dst = A; src = Register A } ] [] [] |> print;
+  eir [ Mov { dst = A; src = Register A } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src (Var (Register A))))) |}]
+
+let%expect_test "add is lifted correctly" =
+  eir [ Add { dst = A; src = Label "label" } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src (Add ((Label label) (Var (Register A))))))) |}]
+
+let%expect_test "sub is lifted correctly" =
+  eir [ Sub { dst = A; src = Int 5 } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src (Sub (Var (Register A)) (Const 5))))) |}]
+
+let%expect_test "load is lifted correctly" =
+  eir [ Load { dst = A; src = Register B } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src (Var (Memory (Var (Register B))))))) |}]
+
+let%expect_test "store is lifted correctly" =
+  eir [ Store { dst = Register A; src = B } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Memory (Var (Register A)))) (src (Var (Register B))))) |}]
+
+let%expect_test "putc is lifted correctly" =
+  eir [ Putc (Register A) ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Putc (Var (Register A))) |}]
+
+let%expect_test "getc is lifted correctly" =
+  eir [ Getc A ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src Getc))) |}]
+
+let%expect_test "exit is lifted correctly" =
+  eir [ Exit ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: Exit |}]
+
+let%expect_test "jump is lifted correctly" =
+  eir [ Jump { target = Register A; cond = None } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Jump ((target (Var (Register A))) (cond ()))) |}]
+
+let%expect_test "set is lifted correctly" =
+  eir [ Set { cmp = Eq; args = { dst = B; src = Register A } } ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign
+       ((dst (Register B))
+        (src (If ((cmp Eq) (left (Var (Register B))) (right (Var (Register A)))))))) |}]
+
+let%expect_test "dump is lifted correctly to nop" =
+  eir [ Dump ] [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: Nop |}]
+
+let%expect_test "many text labels are eliminated" =
+  let address = Eir.Address.{ segment = Text; offset = 0 } in
+  let labels = [ ("foo", address); ("baz", address); ("bar", address) ] in
+  let insns = [ Eir.Instruction.Exit ] in
+  eir insns labels [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: Exit |}]
+
+let%expect_test "main is not clobbered" =
+  let labels = [ ("main", Eir.Address.{ segment = Text; offset = 0 }) ] in
+  let insns = [ Eir.Instruction.Exit ] in
+  eir insns labels [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      main: Exit |}]
+
+let%expect_test "fallthrough branches are added for each instruction" =
+  let insns = [ Eir.Instruction.Mov { dst = A; src = Register A }; Exit ] in
+  eir insns [] [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src (Var (Register A)))))
+      branch:
+        fallthrough to __L1
+      __L1: Exit
+      references:
+        Fallthrough from __L0 |}]
+
+let%expect_test "unconditional branch has edge to target" =
+  let labels = [ ("foo", Eir.Address.{ segment = Text; offset = 1 }) ] in
+  let insns =
+    [ Eir.Instruction.Jump { target = Label "foo"; cond = None }; Exit ]
+  in
+  eir insns labels [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Jump ((target (Label __L1)) (cond ())))
+      branch:
+        unconditional jump to __L1
+      __L1: Exit
+      references:
+        Jump from __L0 |}]
+
+let%expect_test "conditional branch have edges to targets" =
+  let labels = [ ("foo", Eir.Address.{ segment = Text; offset = 2 }) ] in
+  let insns =
+    [
+      Eir.Instruction.Jump
+        {
+          target = Label "foo";
+          cond = Some { cmp = Eq; args = { dst = A; src = Register B } };
+        };
+      Putc (Register A);
+      Exit;
+    ]
+  in
+  eir insns labels [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Jump
+       ((target (Label __L2))
+        (cond (((cmp Eq) (left (Var (Register A))) (right (Var (Register B))))))))
+      branch:
+        conditional jump to true: __L2 false: __L1
+      __L1: (Putc (Var (Register A)))
+      references:
+        Fallthrough from __L0
+      branch:
+        fallthrough to __L2
+      __L2: Exit
+      references:
+        Fallthrough from __L1
+        Jump from __L0 |}]
+
+let%expect_test "data references are updated for label rewrite" =
+  let labels = [ ("foo", Eir.Address.{ segment = Text; offset = 0 }) ] in
+  let insns = [ Eir.Instruction.Exit ] in
+  let data = [ Eir.Data.Label "foo" ] in
+  eir insns labels data |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap))
+       ((label __D0) (type_ (Chunk ((Label __L0))))))
+    graph:
+      __L0: Exit |}]
+
+let%expect_test "data is segmented correctly" =
+  let labels =
+    [
+      ("foo", Eir.Address.{ segment = Data; offset = 0 });
+      ("bar", { segment = Data; offset = 2 });
+      ("baz", { segment = Data; offset = 2 });
+      ("qux", { segment = Data; offset = 3 });
+    ]
+  in
+  let insns = [ Eir.Instruction.Exit ] in
+  let data = [ Eir.Data.Const 0; Const 1; Const 2; Const 3; Const 4 ] in
+  eir insns labels data |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap))
+       ((label foo) (type_ (Chunk ((Const 0) (Const 1)))))
+       ((label bar) (type_ (Chunk ((Const 2)))))
+       ((label qux) (type_ (Chunk ((Const 3) (Const 4))))))
+    graph:
+      __L0: Exit |}]
+
+let%expect_test "text references are updated for label rewrite" =
+  let labels =
+    [
+      ("a", Eir.Address.{ segment = Data; offset = 0 });
+      ("b", { segment = Data; offset = 0 });
+    ]
+  in
+  let insns = [ Eir.Instruction.Mov { dst = A; src = Label "b" } ] in
+  let data = [ Eir.Data.Const 0 ] in
+  eir insns labels data |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap))
+       ((label a) (type_ (Chunk ((Const 0))))))
+    graph:
+      __L0: (Assign ((dst (Register A)) (src (Label a)))) |}]
+
+let%expect_test "program with no data with data labels has just heap" =
+  let labels = [ ("a", Eir.Address.{ segment = Data; offset = 0 }) ] in
+  eir [] labels [] |> print;
   [%expect {|
-    (((label __reserved_heap_base) (type_ Heap)))
-    label: __L0
-    stmt: (Assign ((dst (Register A)) (src (Var (Register A)))))
-    references:
-    branch:
-      None |}]
-(*
-   let%expect_test "add is lifted correctly" =
-     ir [ Add { dst = A; src = Label "label" } ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements
-                 ((Assign ((dst (Named A)) (src (Add ((Var (Named A)) (Label label))))))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
+    data:
+      (((label __reserved_heap_base) (type_ Heap))) |}]
 
-   let%expect_test "sub is lifted correctly" =
-     ir [ Sub { dst = A; src = Int 5 } ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements
-                 ((Assign ((dst (Named A)) (src (Sub (Var (Named A)) (Const 5)))))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
+let%expect_test "program with no insns with text labels has just heap" =
+  let labels = [ ("a", Eir.Address.{ segment = Text; offset = 0 }) ] in
+  eir [] labels [] |> print;
+  [%expect {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap))) |}]
 
-   let%expect_test "load is lifted correctly" =
-     ir [ Load { dst = A; src = Register B } ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements
-                 ((Assign ((dst (Named A)) (src (Var (Memory (Var (Named B)))))))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
+let%expect_test "program with two top blocks" =
+  let labels = [ ("a", Eir.Address.{ segment = Text; offset = 1 }) ] in
+  let insns =
+    [ Eir.Instruction.Exit; Mov { dst = A; src = Register B }; Dump ]
+  in
+  eir insns labels [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: Exit
+      __L1: (Assign ((dst (Register A)) (src (Var (Register B)))))
+      branch:
+        fallthrough to __L2
+      __L2: Nop
+      references:
+        Fallthrough from __L1 |}]
 
-   let%expect_test "store is lifted correctly" =
-     ir [ Store { dst = Register A; src = B } ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements
-                 ((Assign ((dst (Memory (Var (Named A)))) (src (Var (Named B)))))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "putc is lifted correctly" =
-     ir [ Putc (Register A) ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0) (statements ((Putc (Var (Named A))))) (in_edges ())
-                (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "getc is lifted correctly" =
-     ir [ Getc A ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0) (statements ((Assign ((dst (Named A)) (src Getc)))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "exit is lifted correctly" =
-     ir [ Exit ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0 ((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "jump is lifted correctly" =
-     ir [ Jump { target = Register A; cond = None } ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0) (statements ((Jump ((target (Var (Named A))) (cond ())))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "set is lifted correctly" =
-     ir [ Set { cmp = Eq; args = { dst = B; src = Register A } } ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements
-                 ((Assign
-                   ((dst (Named B))
-                    (src (If ((cmp Eq) (left (Var (Named B))) (right (Var (Named A))))))))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "dump is lifted correctly to nop" =
-     ir [ Dump ] [] [] |> print;
-     [%expect
-       {|
-             ((__L0 ((label __L0) (statements (Nop)) (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "many text labels are eliminated" =
-     let address = { segment = Text; offset = 0 } in
-     let labels = [ ("foo", address); ("baz", address); ("bar", address) ] in
-     let insns = [ Exit ] in
-     ir insns labels [] |> print;
-     [%expect
-       {|
-             ((__L0 ((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "main is not clobbered" =
-     let labels = [ ("main", { segment = Text; offset = 0 }) ] in
-     let insns = [ Exit ] in
-     ir insns labels [] |> print;
-     [%expect
-       {|
-             ((main ((label main) (statements (Exit)) (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "fallthrough branches are added for each instruction" =
-     let insns = [ Mov { dst = A; src = Register A }; Exit ] in
-     ir insns [] [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements ((Assign ((dst (Named A)) (src (Var (Named A)))))))
-                (in_edges ())
-                (branch
-                 ((Fallthrough
-                   ((label __L1) (statements (Exit))
-                    (in_edges (((label __L0) (type_ Fallthrough)))) (branch ())))))))
-              (__L1
-               ((label __L1) (statements (Exit))
-                (in_edges (((label __L0) (type_ Fallthrough)))) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "unconditional branch has edge to target" =
-     let labels = [ ("foo", { segment = Text; offset = 1 }) ] in
-     let insns = [ Jump { target = Label "foo"; cond = None }; Exit ] in
-     ir insns labels [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0) (statements ((Jump ((target (Label __L1)) (cond ())))))
-                (in_edges ())
-                (branch
-                 ((Unconditional_jump
-                   ((label __L1) (statements (Exit))
-                    (in_edges (((label __L0) (type_ Jump)))) (branch ())))))))
-              (__L1
-               ((label __L1) (statements (Exit)) (in_edges (((label __L0) (type_ Jump))))
-                (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "conditional branch have edges to targets" =
-     let labels = [ ("foo", { segment = Text; offset = 2 }) ] in
-     let insns =
-       [
-         Jump
-           {
-             target = Label "foo";
-             cond = Some { cmp = Eq; args = { dst = A; src = Register B } };
-           };
-         Putc (Register A);
-         Exit;
-       ]
-     in
-     ir insns labels [] |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0)
-                (statements
-                 ((Jump
-                   ((target (Label __L2))
-                    (cond (((cmp Eq) (left (Var (Named A))) (right (Var (Named B))))))))))
-                (in_edges ())
-                (branch
-                 ((Conditional_jump
-                   (true_
-                    ((label __L2) (statements (Exit))
-                     (in_edges
-                      (((label __L1) (type_ Fallthrough)) ((label __L0) (type_ Jump))))
-                     (branch ())))
-                   (false_
-                    ((label __L1) (statements ((Putc (Var (Named A)))))
-                     (in_edges (((label __L0) (type_ Fallthrough))))
-                     (branch
-                      ((Fallthrough
-                        ((label __L2) (statements (Exit))
-                         (in_edges
-                          (((label __L1) (type_ Fallthrough)) ((label __L0) (type_ Jump))))
-                         (branch ()))))))))))))
-              (__L1
-               ((label __L1) (statements ((Putc (Var (Named A)))))
-                (in_edges (((label __L0) (type_ Fallthrough))))
-                (branch
-                 ((Fallthrough
-                   ((label __L2) (statements (Exit))
-                    (in_edges
-                     (((label __L1) (type_ Fallthrough)) ((label __L0) (type_ Jump))))
-                    (branch ())))))))
-              (__L2
-               ((label __L2) (statements (Exit))
-                (in_edges
-                 (((label __L1) (type_ Fallthrough)) ((label __L0) (type_ Jump))))
-                (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "data references are updated for label rewrite" =
-     let labels = [ ("foo", { segment = Text; offset = 0 }) ] in
-     let insns = [ Exit ] in
-     let data = [ Eir.Data.Label "foo" ] in
-     ir insns labels data |> print;
-     [%expect
-       {|
-             ((__L0 ((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))
-              ((label __D0) (type_ (Chunk ((Label __L0)))))) |}]
-
-   let%expect_test "data is segmented correctly" =
-     let labels =
-       [
-         ("foo", { segment = Data; offset = 0 });
-         ("bar", { segment = Data; offset = 2 });
-         ("baz", { segment = Data; offset = 2 });
-         ("qux", { segment = Data; offset = 3 });
-       ]
-     in
-     let insns = [ Exit ] in
-     let data = [ Eir.Data.Const 0; Const 1; Const 2; Const 3; Const 4 ] in
-     ir insns labels data |> print;
-     [%expect
-       {|
-             ((__L0 ((label __L0) (statements (Exit)) (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))
-              ((label foo) (type_ (Chunk ((Const 0) (Const 1)))))
-              ((label bar) (type_ (Chunk ((Const 2)))))
-              ((label qux) (type_ (Chunk ((Const 3) (Const 4)))))) |}]
-
-   let%expect_test "text references are updated for label rewrite" =
-     let labels =
-       [
-         ("a", { segment = Data; offset = 0 });
-         ("b", { segment = Data; offset = 0 });
-       ]
-     in
-     let insns = [ Mov { dst = A; src = Label "b" } ] in
-     let data = [ Eir.Data.Const 0 ] in
-     ir insns labels data |> print;
-     [%expect
-       {|
-             ((__L0
-               ((label __L0) (statements ((Assign ((dst (Named A)) (src (Label a))))))
-                (in_edges ()) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))
-              ((label a) (type_ (Chunk ((Const 0)))))) |}]
-
-   let%expect_test "program with no data with data labels has just heap" =
-     let labels = [ ("a", { segment = Data; offset = 0 }) ] in
-     ir [] labels [] |> print;
-     [%expect
-       {|
-               ()
-               (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "program with no insns with text labels has just heap" =
-     let labels = [ ("a", { segment = Text; offset = 0 }) ] in
-     ir [] labels [] |> print;
-     [%expect
-       {|
-               ()
-               (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "program with two top blocks" =
-     let labels = [ ("a", { segment = Text; offset = 1 }) ] in
-     let insns = [ Exit; Mov { dst = A; src = Register B }; Dump ] in
-     ir insns labels [] |> print;
-     [%expect
-       {|
-             ((__L0 ((label __L0) (statements (Exit)) (in_edges ()) (branch ())))
-              (__L1
-               ((label __L1)
-                (statements ((Assign ((dst (Named A)) (src (Var (Named B)))))))
-                (in_edges ())
-                (branch
-                 ((Fallthrough
-                   ((label __L2) (statements (Nop))
-                    (in_edges (((label __L1) (type_ Fallthrough)))) (branch ())))))))
-              (__L2
-               ((label __L2) (statements (Nop))
-                (in_edges (((label __L1) (type_ Fallthrough)))) (branch ()))))
-             (((label __reserved_heap_base) (type_ Heap))) |}]
-
-   let%expect_test "program with self loop" =
-     let labels = [ ("a", { segment = Text; offset = 0 }) ] in
-     let insns = [ Jump { target = Label "a"; cond = None } ] in
-     let ir = ir insns labels [] in
-     printf "%d" (Hashtbl.length @@ Program.blocks ir);
-     [%expect {| 1 |}];
-     let block = Hashtbl.find_exn (Program.blocks ir) "__L0" in
-     printf "%s" block.label;
-     [%expect {| __L0 |}];
-     let target = block.branch in
-     match target with
-     | Some (Unconditional_jump target) ->
-         printf "%s" target.label;
-         [%expect {| __L0 |}]
-     | _ -> assert false *)
+let%expect_test "program with self loop" =
+  let labels = [ ("a", Eir.Address.{ segment = Text; offset = 0 }) ] in
+  let insns = [ Eir.Instruction.Jump { target = Label "a"; cond = None } ] in
+  eir insns labels [] |> print;
+  [%expect
+    {|
+    data:
+      (((label __reserved_heap_base) (type_ Heap)))
+    graph:
+      __L0: (Jump ((target (Label __L0)) (cond ())))
+      references:
+        Jump from __L0
+      branch:
+        unconditional jump to __L0 |}]

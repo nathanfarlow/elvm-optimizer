@@ -11,14 +11,9 @@ module For_tests (Element : Sexpable.S) = struct
   module Node_test = Node.For_tests (Element)
 
   let to_string (t : Element.t t) =
-    let node_to_string =
-      Graph_util.memoize ~f:Node_test.to_string ~on_cycle:(fun node ->
-          sprintf "<cycle: %s>" (Node.label node))
-    in
-
-    find_blocks t |> Hashtbl.to_alist
+    t.nodes |> Hashtbl.to_alist
     (* sort for deterministic output *)
     |> List.sort ~compare:(fun (a, _) (b, _) -> String.compare a b)
-    |> List.map ~f:(fun (_, node) -> node_to_string node)
+    |> List.map ~f:(fun (_, node) -> Node_test.to_string node)
     |> String.concat ~sep:"\n"
 end
