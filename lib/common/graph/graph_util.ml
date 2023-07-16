@@ -4,7 +4,7 @@ let memoize ~f ~on_cycle =
     match Hashtbl.find memo (Node.label node) with
     | Some res -> res
     | None ->
-        Hashtbl.set memo ~key:(Node.label node) ~data:on_cycle;
-        f g node
+        Hashtbl.set memo ~key:(Node.label node) ~data:(on_cycle node);
+        f node g
   in
   g

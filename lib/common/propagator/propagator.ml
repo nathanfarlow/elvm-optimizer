@@ -37,11 +37,11 @@ end = struct
 
   let get_prelim_mappings =
     Graph_util.memoize
-      ~f:(fun get_prelim_mappings node ->
+      ~f:(fun node get_prelim_mappings ->
         List.fold (Node.references node) ~init:Mapping.empty
           ~f:(fun acc parent ->
             Mapping.merge acc (get_end_mappings get_prelim_mappings parent.from)))
-      ~on_cycle:Mapping.empty
+      ~on_cycle:(fun _ -> Mapping.empty)
 
   let prepend_assignment graph node left right =
     let stmt = Statement.from_mapping { from = left; to_ = right } in
