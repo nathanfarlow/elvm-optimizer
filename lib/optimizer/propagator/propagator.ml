@@ -1,6 +1,6 @@
 module Make
-    (Statement : Statement_mapping_intf.S)
-    (Lhs : Lhs_intf.S with type t = Statement.lhs and type rhs := Statement.rhs)
+    (Statement : Prop_statement_intf.S)
+    (Lhs : Lhs_intf.S with type t = Statement.lhs)
     (Rhs : Rhs_intf.S with type t = Statement.rhs and type lhs := Statement.lhs) : sig
   type t
 
@@ -11,7 +11,7 @@ module Make
       with type t := t
        and type target := Statement.t Graph.t
 end = struct
-  module Mapping = Mapping.Make (Statement) (Lhs) (Rhs)
+  module Mapping = Mapping.Make (Lhs) (Rhs)
 
   type t = unit
 
@@ -30,8 +30,8 @@ end = struct
 
   let get_end_mappings get_prelim_mappings node =
     let prelim = get_prelim_mappings node in
-    match Statement.get_assignment (Node.stmt node) with
-    | Some (left, right) -> (Mapping.update prelim left right).valid
+    match Statement.get_mapping_from_assignment (Node.stmt node) with
+    | Some { from; to_ } -> (Mapping.update prelim ~from ~to_).valid
     | None -> prelim
 
   let get_prelim_mappings =
@@ -43,16 +43,16 @@ end = struct
       ~on_cycle:Mapping.empty
 
   let prepend_assignment graph node left right =
-    let stmt = Statement.from_assignment left right in
+    let stmt = Statement.from_mapping { from = left; to_ = right } in
     let label = Graph.fresh_label graph in
     let new_node = Node.create ~label ~stmt in
     Node.prepend_node node new_node;
     Graph.register_node graph new_node
 
   let invalidate_mappings graph node prelim =
-    match Statement.get_assignment (Node.stmt node) with
-    | Some (left, right) ->
-        let Mapping.{ valid; invalid } = Mapping.update prelim left right in
+    match Statement.get_mapping_from_assignment (Node.stmt node) with
+    | Some { from; to_ } ->
+        let Mapping.{ valid; invalid } = Mapping.update prelim ~from ~to_ in
         let invalid_as_list = Mapping.to_alist invalid in
         List.iter invalid_as_list ~f:(fun (left, right) ->
             prepend_assignment graph node left right);
@@ -66,7 +66,9 @@ end = struct
         ~init:(Node.stmt node, false)
         ~f:(fun acc (left, right) ->
           let stmt, has_substituted_already = acc in
-          let stmt, just_substituted = Statement.substitute stmt left right in
+          let stmt, just_substituted =
+            Statement.substitute stmt { from = left; to_ = right }
+          in
           (stmt, has_substituted_already || just_substituted))
     in
     Node.set_stmt node updated_stmt;

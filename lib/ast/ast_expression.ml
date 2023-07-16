@@ -21,8 +21,7 @@ end = struct
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  let contains _t _other = failwith "todo"
-  let substitute _t _var _expr = failwith "todo"
+  let contains _t _lhs = failwith "todo"
 end
 
 and Comparison : sig
@@ -40,13 +39,12 @@ and Variable : sig
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
-  include Lhs_intf.S with type t := t and type rhs := Expression.t
+  include Lhs_intf.S with type t := t
 end = struct
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
   let contains _t _other = failwith "todo"
-  let substitute _t _var _expr = failwith "todo"
 end
 
 include Expression
