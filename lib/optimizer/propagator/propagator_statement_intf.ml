@@ -6,6 +6,6 @@ module type S = sig
 
   val nop : t
   val from_mapping : mapping -> t
-  val substitute : t -> mapping -> t * bool
   val get_mapping_from_assignment : t -> mapping option
+  val substitute_lhs_to_rhs : t -> from:lhs -> to_:rhs -> t * bool
 end

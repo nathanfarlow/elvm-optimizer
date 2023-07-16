@@ -72,11 +72,11 @@ end = struct
     | Exit -> (Exit, false)
     | Nop -> (Nop, false)
 
-  let substitute t { from; to_ } =
+  let substitute_lhs_to_rhs t ~from ~to_ =
     let from = Ast.Expression.Var from in
     substitute_exp t ~from ~to_
 
-  let substitute_reverse t ~from ~to_ =
+  let substitute_rhs_to_lhs t ~from ~to_ =
     let to_ = Ast.Expression.Var to_ in
     substitute_exp t ~from ~to_
 

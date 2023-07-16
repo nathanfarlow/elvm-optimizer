@@ -35,7 +35,7 @@ end = struct
     List.fold mappings ~init:(stmt, false) ~f:(fun acc (left, right) ->
         let stmt, has_substituted_already = acc in
         let stmt, just_substituted =
-          Statement.substitute stmt { from = left; to_ = right }
+          Statement.substitute_lhs_to_rhs stmt ~from:left ~to_:right
         in
         (stmt, has_substituted_already || just_substituted))
 
