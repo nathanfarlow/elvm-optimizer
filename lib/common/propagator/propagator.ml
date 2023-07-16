@@ -19,17 +19,6 @@ end = struct
 
   let create = Fn.id
 
-  let memoize ~f ~on_cycle =
-    let memo = Hashtbl.create (module String) in
-    let rec g node =
-      match Hashtbl.find memo (Node.label node) with
-      | Some res -> res
-      | None ->
-          Hashtbl.set memo ~key:(Node.label node) ~data:on_cycle;
-          f g node
-    in
-    g
-
   let substitute_all stmt mappings =
     let mappings = Mapping.to_alist mappings in
     List.fold mappings ~init:(stmt, false) ~f:(fun acc (left, right) ->
@@ -47,7 +36,7 @@ end = struct
     | None -> prelim
 
   let get_prelim_mappings =
-    memoize
+    Graph_util.memoize
       ~f:(fun get_prelim_mappings node ->
         List.fold (Node.references node) ~init:Mapping.empty
           ~f:(fun acc parent ->
