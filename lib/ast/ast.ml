@@ -11,7 +11,7 @@ module rec Expression : sig
 
   include Propagator_rhs_intf.S with type t := t and type lhs := Variable.t
 
-  val substitute : t -> from:Variable.t -> to_:t -> t * bool
+  val substitute : t -> from:t -> to_:t -> t * bool
 end = struct
   type t =
     | Const of int
@@ -64,8 +64,17 @@ end =
 and Condition : sig
   type t = { cmp : Comparison.t; left : Expression.t; right : Expression.t }
   [@@deriving sexp, equal, compare, hash]
-end =
-  Condition
+
+  val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
+end = struct
+  type t = { cmp : Comparison.t; left : Expression.t; right : Expression.t }
+  [@@deriving sexp, equal, compare, hash]
+
+  let substitute t ~from ~to_ =
+    let left, left_changed = Expression.substitute t.left ~from ~to_ in
+    let right, right_changed = Expression.substitute t.right ~from ~to_ in
+    ({ cmp = t.cmp; left; right }, left_changed || right_changed)
+end
 
 and Variable : sig
   type t = Register of Eir.Register.t | Memory of Expression.t
@@ -73,7 +82,7 @@ and Variable : sig
 
   include Propagator_lhs_intf.S with type t := t
 
-  val substitute : t -> from:t -> to_:Expression.t -> t * bool
+  val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end = struct
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
