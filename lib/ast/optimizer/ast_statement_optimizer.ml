@@ -4,7 +4,6 @@ module Make
 struct
   type t = Expression_optimizer.t
 
-  (* todo eliminate this duplicate logic *)
   let optimize_variable optimize_exp = function
     | Ast.Variable.Memory exp ->
         let exp, changed = optimize_exp exp in

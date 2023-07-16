@@ -1,9 +1,9 @@
 module Make
     (Statement : Propagator_statement_intf.S)
-    (Lhs : Propagator_lhs_intf.S with type t = Statement.lhs)
-    (Rhs : Propagator_rhs_intf.S
-             with type t = Statement.rhs
-              and type lhs := Statement.lhs) : sig
+    (Var : Propagator_var_intf.S with type t = Statement.var)
+    (Exp : Propagator_exp_intf.S
+             with type t = Statement.exp
+              and type var := Var.t) : sig
   type t
 
   val create : unit -> t
@@ -13,7 +13,7 @@ module Make
       with type t := t
        and type target := Statement.t Graph.t
 end = struct
-  module Mapping = Propagator_mapping.Make (Lhs) (Rhs)
+  module Mapping = Propagator_mapping.Make (Var) (Exp)
 
   type t = unit
 
@@ -35,7 +35,7 @@ end = struct
     List.fold mappings ~init:(stmt, false) ~f:(fun acc (left, right) ->
         let stmt, has_substituted_already = acc in
         let stmt, just_substituted =
-          Statement.substitute_lhs_to_rhs stmt ~from:left ~to_:right
+          Statement.substitute_var_to_exp stmt ~from:left ~to_:right
         in
         (stmt, has_substituted_already || just_substituted))
 

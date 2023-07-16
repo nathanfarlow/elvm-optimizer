@@ -9,7 +9,7 @@ module rec Expression : sig
     | If of Condition.t
   [@@deriving sexp, equal, compare, hash]
 
-  include Propagator_rhs_intf.S with type t := t and type lhs := Variable.t
+  include Propagator_exp_intf.S with type t := t and type var := Variable.t
 
   val substitute : t -> from:t -> to_:t -> t * bool
 end = struct
@@ -80,7 +80,7 @@ and Variable : sig
   type t = Register of Eir.Register.t | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
-  include Propagator_lhs_intf.S with type t := t
+  include Propagator_var_intf.S with type t := t
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end = struct
