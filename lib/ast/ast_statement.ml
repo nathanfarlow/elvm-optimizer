@@ -58,10 +58,8 @@ end = struct
   let branch_type = function
     | Exit -> None
     | Assign _ | Putc _ | Nop -> Some Statement_intf.Branch_type.Fallthrough
-    | Jump { cond = None; _ } ->
-        Some Statement_intf.Branch_type.Unconditional_jump
-    | Jump { cond = Some _; _ } ->
-        Some Statement_intf.Branch_type.Conditional_jump
+    | Jump { cond = None; _ } -> Some Unconditional_jump
+    | Jump { cond = Some _; _ } -> Some Conditional_jump
 
   let from_mapping { from; to_ } = Assign { dst = from; src = to_ }
 

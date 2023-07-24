@@ -3,11 +3,11 @@ module Program_tests = Program.For_tests (Ast_statement)
 
 let print program = Program_tests.to_string program |> print_endline
 
-let eeir insns labels data =
+let eir insns labels data =
   let labels = Hashtbl.of_alist_exn (module String) labels in
   Eir.create ~insns ~labels ~data
 
-let eir insns labels data = eeir insns labels data |> Eir_lift_to_ast.f
+let eir insns labels data = eir insns labels data |> Eir_lift_to_ast.f
 
 let%expect_test "no insns is empty list" =
   eir [] [] [] |> print;
@@ -148,11 +148,11 @@ let%expect_test "fallthrough branches are added for each instruction" =
       (((label __reserved_heap_base) (type_ Heap)))
     graph:
       __L0: (Assign ((dst (Register A)) (src (Var (Register A)))))
-      branch:
-        fallthrough to __L1
+        branch:
+          fallthrough to __L1
       __L1: Exit
-      references:
-        Fallthrough from __L0 |}]
+        references:
+          Fallthrough from __L0 |}]
 
 let%expect_test "unconditional branch has edge to target" =
   let labels = [ ("foo", Eir.Address.{ segment = Text; offset = 1 }) ] in
@@ -166,11 +166,11 @@ let%expect_test "unconditional branch has edge to target" =
       (((label __reserved_heap_base) (type_ Heap)))
     graph:
       __L0: (Jump ((target (Label __L1)) (cond ())))
-      branch:
-        unconditional jump to __L1
+        branch:
+          unconditional jump to __L1
       __L1: Exit
-      references:
-        Jump from __L0 |}]
+        references:
+          Jump from __L0 |}]
 
 let%expect_test "conditional branch have edges to targets" =
   let labels = [ ("foo", Eir.Address.{ segment = Text; offset = 2 }) ] in
@@ -194,17 +194,17 @@ let%expect_test "conditional branch have edges to targets" =
       __L0: (Jump
        ((target (Label __L2))
         (cond (((cmp Eq) (left (Var (Register A))) (right (Var (Register B))))))))
-      branch:
-        conditional jump to true: __L2 false: __L1
+        branch:
+          conditional jump to true: __L2 false: __L1
       __L1: (Putc (Var (Register A)))
-      references:
-        Fallthrough from __L0
-      branch:
-        fallthrough to __L2
+        references:
+          Fallthrough from __L0
+        branch:
+          fallthrough to __L2
       __L2: Exit
-      references:
-        Fallthrough from __L1
-        Jump from __L0 |}]
+        references:
+          Fallthrough from __L1
+          Jump from __L0 |}]
 
 let%expect_test "data references are updated for label rewrite" =
   let labels = [ ("foo", Eir.Address.{ segment = Text; offset = 0 }) ] in
@@ -286,11 +286,11 @@ let%expect_test "program with two top blocks" =
     graph:
       __L0: Exit
       __L1: (Assign ((dst (Register A)) (src (Var (Register B)))))
-      branch:
-        fallthrough to __L2
+        branch:
+          fallthrough to __L2
       __L2: Nop
-      references:
-        Fallthrough from __L1 |}]
+        references:
+          Fallthrough from __L1 |}]
 
 let%expect_test "program with self loop" =
   let labels = [ ("a", Eir.Address.{ segment = Text; offset = 0 }) ] in
@@ -302,7 +302,7 @@ let%expect_test "program with self loop" =
       (((label __reserved_heap_base) (type_ Heap)))
     graph:
       __L0: (Jump ((target (Label __L0)) (cond ())))
-      references:
-        Jump from __L0
-      branch:
-        unconditional jump to __L0 |}]
+        references:
+          Jump from __L0
+        branch:
+          unconditional jump to __L0 |}]
