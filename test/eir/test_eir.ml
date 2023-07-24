@@ -1,4 +1,3 @@
-open Core
 open Elvm
 
 let parse = Eir.parse_exn
