@@ -48,16 +48,21 @@ end = struct
 
     let to_string t =
       (t.label ^ ": " ^ ([%sexp_of: Element.t] t.stmt |> Sexp.to_string_hum))
-      :: (if not @@ List.is_empty t.references then [ "references:" ] else [])
+      ::
+      (if not @@ List.is_empty t.references then
+         [ String_util.indent_string "references:" ~indent:1 ]
+       else [])
       @ (t.references
         |> List.map
              ~f:(Reference_tests.to_string ~node_to_string:(fun n -> n.label))
-        |> List.map ~f:(String_util.indent_string ~indent:1))
-      @ (if Option.is_some t.branch then [ "branch:" ] else [])
+        |> List.map ~f:(String_util.indent_string ~indent:2))
+      @ (if Option.is_some t.branch then
+           [ String_util.indent_string "branch:" ~indent:1 ]
+         else [])
       @ Option.value_map t.branch ~default:[] ~f:(fun node ->
             [
               Branch_tests.to_string node ~node_to_string:(fun n -> n.label)
-              |> String_util.indent_string ~indent:1;
+              |> String_util.indent_string ~indent:2;
             ])
       |> String.concat ~sep:"\n"
   end
