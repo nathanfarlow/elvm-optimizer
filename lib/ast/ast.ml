@@ -99,7 +99,9 @@ end = struct
         (Memory expr, expr_changed)
 
   let contains t var =
-    match t with
-    | Register _ -> false
-    | Memory expr -> Expression.contains expr var
+    if equal t var then true
+    else
+      match t with
+      | Register _ -> false
+      | Memory expr -> Expression.contains expr var
 end
