@@ -66,3 +66,82 @@ let%expect_test "test get mapping from assignment" =
 let%expect_test "test get mapping from non assignment" =
   print_mapping Nop;
   [%expect {| () |}]
+
+let%expect_test "test substitute var to exp in assign" =
+  let stmt =
+    Ast_statement.Assign
+      { dst = Memory (Var (Register A)); src = Var (Register A) }
+  in
+  let stmt', changed =
+    Ast_statement.substitute_var_to_exp stmt ~from:(Ast.Variable.Register A)
+      ~to_:(Ast.Expression.Const 0)
+  in
+  printf "%b" changed;
+  [%expect {| true |}];
+  print stmt';
+  [%expect {| (Assign ((dst (Memory (Const 0))) (src (Const 0)))) |}]
+
+let%expect_test "test substitute var to exp in putc" =
+  let stmt = Ast_statement.Putc (Var (Register A)) in
+  let stmt', changed =
+    Ast_statement.substitute_var_to_exp stmt ~from:(Ast.Variable.Register A)
+      ~to_:(Ast.Expression.Const 0)
+  in
+  printf "%b" changed;
+  [%expect {| true |}];
+  print stmt';
+  [%expect {| (Putc (Const 0)) |}]
+
+let%expect_test "test substitute var to exp in jump" =
+  let stmt =
+    Ast_statement.Jump
+      {
+        cond =
+          Some { cmp = Eq; left = Var (Register A); right = Var (Register A) };
+        target = Var (Register A);
+      }
+  in
+  let stmt', changed =
+    Ast_statement.substitute_var_to_exp stmt ~from:(Ast.Variable.Register A)
+      ~to_:(Ast.Expression.Const 0)
+  in
+  printf "%b" changed;
+  [%expect {| true |}];
+  print stmt';
+  [%expect
+    {|
+    (Jump
+     ((target (Const 0)) (cond (((cmp Eq) (left (Const 0)) (right (Const 0))))))) |}]
+
+let%expect_test "test substitute var to exp in exit" =
+  let stmt = Ast_statement.Exit in
+  let stmt', changed =
+    Ast_statement.substitute_var_to_exp stmt ~from:(Ast.Variable.Register A)
+      ~to_:(Ast.Expression.Const 0)
+  in
+  printf "%b" changed;
+  [%expect {| false |}];
+  print stmt';
+  [%expect {| Exit |}]
+
+let%expect_test "test substitute var to exp in nop" =
+  let stmt = Ast_statement.Nop in
+  let stmt', changed =
+    Ast_statement.substitute_var_to_exp stmt ~from:(Ast.Variable.Register A)
+      ~to_:(Ast.Expression.Const 0)
+  in
+  printf "%b" changed;
+  [%expect {| false |}];
+  print stmt';
+  [%expect {| Nop |}]
+
+let%expect_test "test substitute exp to var" =
+  let stmt = Ast_statement.Putc (Const 0) in
+  let stmt', changed =
+    Ast_statement.substitute_exp_to_var stmt ~from:(Ast.Expression.Const 0)
+      ~to_:(Ast.Variable.Register A)
+  in
+  printf "%b" changed;
+  [%expect {| true |}];
+  print stmt';
+  [%expect {| (Putc (Var (Register A))) |}]
