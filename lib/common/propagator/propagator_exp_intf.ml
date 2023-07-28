@@ -1,8 +1,6 @@
 module type S = sig
-  type t
+  type t [@@deriving sexp, equal]
   type var
 
   val contains : t -> var -> bool
-
-  include Equal.S with type t := t
 end

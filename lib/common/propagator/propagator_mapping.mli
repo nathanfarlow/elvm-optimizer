@@ -1,7 +1,7 @@
 module Make
     (Lhs : Propagator_var_intf.S)
     (Rhs : Propagator_exp_intf.S with type var := Lhs.t) : sig
-  type t
+  type t [@@deriving sexp]
 
   include
     Propagator_mapping_intf.S

@@ -1,8 +1,5 @@
 module type S = sig
-  type t
+  type t [@@deriving sexp, compare]
 
-  val compare : t -> t -> int
   val contains : t -> t -> bool
-
-  include Sexpable.S with type t := t
 end
