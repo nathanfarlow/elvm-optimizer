@@ -51,6 +51,7 @@ end = struct
   [@@deriving sexp, equal, compare, hash]
 
   type mapping = { from : Ast.Variable.t; to_ : Ast.Expression.t }
+  [@@deriving sexp]
 
   let is_nop = equal Nop
   let nop = Nop
