@@ -1,5 +1,6 @@
 module Branch_type = struct
   type t = Unconditional_jump | Conditional_jump | Fallthrough
+  [@@deriving sexp]
 end
 
 module type S = sig
