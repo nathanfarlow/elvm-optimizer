@@ -2,16 +2,8 @@ module Make
     (Statement : Propagator_statement_intf.S)
     (Mapping : Propagator_mapping_intf.S
                  with type key := Statement.var
-                  and type value := Statement.exp) : sig
-  type t
-
-  val create : unit -> t
-
-  include
-    Inplace_optimizer_intf.S
-      with type t := t
-       and type target := Statement.t Graph.t
-end = struct
+                  and type value := Statement.exp) =
+struct
   type t = unit
 
   let create = Fn.id
