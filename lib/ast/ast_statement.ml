@@ -30,7 +30,6 @@ module T : sig
       with type t := t
        and type var := Ast.Variable.t
        and type exp := Ast.Expression.t
-       and type mapping := mapping
 end = struct
   module Assignment = struct
     type t = { dst : Ast.Variable.t; src : Ast.Expression.t }
@@ -73,13 +72,15 @@ end = struct
         let e, changed = Ast.Expression.substitute e ~from ~to_ in
         (Putc e, changed)
     | Jump { target; cond } ->
-        let target, changed = Ast.Expression.substitute target ~from ~to_ in
+        let target, target_changed =
+          Ast.Expression.substitute target ~from ~to_
+        in
         let cond, cond_changed =
           Option.value_map cond ~default:(None, false) ~f:(fun cond ->
               let cond, changed = Ast.Condition.substitute cond ~from ~to_ in
               (Some cond, changed))
         in
-        (Jump { target; cond }, changed || cond_changed)
+        (Jump { target; cond }, target_changed || cond_changed)
     | Exit -> (Exit, false)
     | Nop -> (Nop, false)
 

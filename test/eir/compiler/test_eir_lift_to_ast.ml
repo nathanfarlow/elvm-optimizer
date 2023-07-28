@@ -142,8 +142,7 @@ let%expect_test "main is not clobbered" =
 let%expect_test "fallthrough branches are added for each instruction" =
   let insns = [ Eir.Instruction.Mov { dst = A; src = Register A }; Exit ] in
   eir insns [] [] |> print;
-  [%expect
-    {|
+  [%expect {|
     data:
       (((label __reserved_heap_base) (type_ Heap)))
     graph:
