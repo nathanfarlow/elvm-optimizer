@@ -1,9 +1,8 @@
 module Make
     (Statement : Propagator_statement_intf.S)
-    (Var : Propagator_var_intf.S with type t = Statement.var)
-    (Exp : Propagator_exp_intf.S
-             with type t = Statement.exp
-              and type var := Var.t) : sig
+    (Mapping : Propagator_mapping_intf.S
+                 with type key := Statement.var
+                  and type value := Statement.exp) : sig
   type t
 
   val create : unit -> t
@@ -13,8 +12,6 @@ module Make
       with type t := t
        and type target := Statement.t Graph.t
 end = struct
-  module Mapping = Propagator_mapping.Make (Var) (Exp)
-
   type t = unit
 
   let create = Fn.id

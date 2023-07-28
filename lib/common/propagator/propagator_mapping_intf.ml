@@ -5,7 +5,7 @@ module type S = sig
   type update_result = { valid : t; invalid : t }
 
   val empty : t
-  val update : t -> key -> value -> update_result
+  val update : t -> from:key -> to_:value -> update_result
   val merge : t -> t -> t
   val get : t -> key -> value option
   val to_alist : t -> (key * value) list
