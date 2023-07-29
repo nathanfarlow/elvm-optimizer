@@ -27,9 +27,13 @@ struct
   let get_prelim_mappings =
     Graph_util.memoize
       ~f:(fun node get_prelim_mappings ->
-        List.fold (Node.references node) ~init:Mapping.empty
-          ~f:(fun acc parent ->
-            Mapping.merge acc (get_end_mappings get_prelim_mappings parent.from)))
+        match Node.references node with
+        | hd :: tl ->
+            List.fold tl ~init:(get_end_mappings get_prelim_mappings hd.from)
+              ~f:(fun acc parent ->
+                Mapping.merge acc
+                  (get_end_mappings get_prelim_mappings parent.from))
+        | [] -> Mapping.empty)
       ~on_cycle:(fun _ -> Mapping.empty)
 
   let prepend_assignment graph node left right =
@@ -37,7 +41,7 @@ struct
     let label = Graph.fresh_label graph in
     let new_node = Node.create ~label ~stmt in
     Node.prepend_node node new_node;
-    Graph.register_node graph new_node
+    Graph.add_node graph new_node
 
   let invalidate_mappings graph node prelim =
     match Statement.get_mapping_from_assignment (Node.stmt node) with

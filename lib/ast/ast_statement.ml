@@ -16,6 +16,9 @@ type t =
   | Nop
 [@@deriving sexp, equal, compare, hash]
 
+type var = Ast.Variable.t
+type exp = Ast.Expression.t
+
 type mapping = { from : Ast.Variable.t; to_ : Ast.Expression.t }
 [@@deriving sexp]
 

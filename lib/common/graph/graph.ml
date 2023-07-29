@@ -1,10 +1,22 @@
-type 'a t = { nodes : (string, 'a Node.t) Hashtbl.t }
+type 'a t = {
+  nodes : (string, 'a Node.t) Hashtbl.t;
+  fresh_label : unit -> string;
+}
 
-let create nodes = { nodes }
+let create nodes =
+  let fresh_label =
+    let counter = ref 0 in
+    fun () ->
+      let label = Printf.sprintf "__L%d" !counter in
+      counter := !counter + 1;
+      label
+  in
+  { nodes; fresh_label }
+
 let nodes t = t.nodes
 let find_blocks t = Hashtbl.filter t.nodes ~f:Node.is_top_level
-let fresh_label _t = failwith "todo"
-let register_node _t _node = failwith "todo"
+let fresh_label t = t.fresh_label ()
+let add_node t node = Hashtbl.add_exn t.nodes ~key:(Node.label node) ~data:node
 
 module For_tests (Element : Sexpable.S) = struct
   module Node_test = Node.For_tests (Element)

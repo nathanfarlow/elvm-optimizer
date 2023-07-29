@@ -1,5 +1,5 @@
 module type S = sig
-  type t
+  type t [@@deriving sexp]
   type key
   type value
   type update_result = { valid : t; invalid : t }
