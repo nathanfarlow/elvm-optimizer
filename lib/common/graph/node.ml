@@ -34,7 +34,33 @@ end = struct
   let set_references t references = t.references <- references
   let add_reference t reference = t.references <- reference :: t.references
   let set_branch t branch = t.branch <- branch
-  let prepend_node _t _other = failwith "todo"
+
+  let update_branch_target t ~old ~new_ =
+    t.branch <-
+      (match t.branch with
+      | Some (Unconditional_jump target)
+        when String.equal target.label old.label ->
+          Some (Unconditional_jump new_)
+      | Some (Conditional_jump { true_; false_ })
+        when String.equal true_.label old.label
+             && String.equal false_.label old.label ->
+          Some (Conditional_jump { true_ = new_; false_ = new_ })
+      | Some (Conditional_jump { true_; false_ })
+        when String.equal true_.label old.label ->
+          Some (Conditional_jump { true_ = new_; false_ })
+      | Some (Conditional_jump { true_; false_ })
+        when String.equal false_.label old.label ->
+          Some (Conditional_jump { true_; false_ = new_ })
+      | Some (Fallthrough target) when String.equal target.label old.label ->
+          Some (Fallthrough new_)
+      | _ -> t.branch)
+
+  let prepend_node t other =
+    List.map t.references ~f:(fun r -> r.from)
+    |> List.iter ~f:(update_branch_target ~old:t ~new_:other);
+    other.references <- t.references;
+    other.branch <- Some (Fallthrough t);
+    t.references <- [ { from = other; type_ = Fallthrough } ]
 
   let is_top_level t =
     match t.references with

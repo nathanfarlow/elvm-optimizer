@@ -24,16 +24,16 @@ struct
     | Some { from; to_ } -> (Mapping.update prelim ~from ~to_).valid
     | None -> prelim
 
-  let get_prelim_mappings =
+  let make_get_prelim_mappings () =
     Graph_util.memoize
       ~f:(fun node get_prelim_mappings ->
-        match Node.references node with
-        | hd :: tl ->
-            List.fold tl ~init:(get_end_mappings get_prelim_mappings hd.from)
-              ~f:(fun acc parent ->
-                Mapping.merge acc
-                  (get_end_mappings get_prelim_mappings parent.from))
-        | [] -> Mapping.empty)
+        let mappings =
+          List.map (Node.references node) ~f:(fun parent ->
+              get_end_mappings get_prelim_mappings parent.from)
+          |> List.reduce ~f:Mapping.merge
+          |> Option.value ~default:Mapping.empty
+        in
+        mappings)
       ~on_cycle:(fun _ -> Mapping.empty)
 
   let prepend_assignment graph node left right =
@@ -58,13 +58,16 @@ struct
     Node.set_stmt node updated_stmt;
     did_update
 
-  let optimize_node graph (node : Statement.t Node.t) =
+  let optimize_node graph (node : Statement.t Node.t) get_prelim_mappings =
     let prelim = get_prelim_mappings node in
     let did_update = update_statement node prelim in
     let _, did_prepend = invalidate_mappings graph node prelim in
     did_prepend || did_update
 
   let optimize _ graph =
-    Hashtbl.fold (Graph.nodes graph) ~init:false
-      ~f:(fun ~key:_ ~data:node acc -> optimize_node graph node || acc)
+    Hashtbl.fold
+      (Hashtbl.copy (Graph.nodes graph))
+      ~init:false
+      ~f:(fun ~key:_ ~data:node acc ->
+        optimize_node graph node (make_get_prelim_mappings ()) || acc)
 end
