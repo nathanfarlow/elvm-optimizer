@@ -11,6 +11,7 @@ module rec Node : sig
   val add_reference : 'a t -> 'a Reference.t -> unit
   val set_branch : 'a t -> 'a Branch.t option -> unit
   val prepend_node : 'a t -> 'a t -> unit
+  val detach : 'a t -> unit
   val is_top_level : 'a t -> bool
 
   module For_tests : functor (Element : Sexpable) -> sig

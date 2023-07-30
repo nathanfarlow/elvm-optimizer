@@ -17,10 +17,10 @@ let fallthrough (stmts : Ast_statement.t list) =
   List.iter pairs ~f:(fun (node, next_node) ->
       Node.set_branch node (Some (Fallthrough next_node));
       Node.set_references next_node [ { from = node; type_ = Fallthrough } ]);
-  List.iter nodes ~f:(Graph.add_node graph);
+  List.iter nodes ~f:(Graph.register_node graph);
   graph
 
-let%expect_test "test simmple variable replacement" =
+let%expect_test "test simple variable replacement" =
   let graph =
     [ Assign { dst = Register A; src = Const 0 }; Putc (Var (Register A)) ]
     |> fallthrough
@@ -29,8 +29,7 @@ let%expect_test "test simmple variable replacement" =
   printf "%b" changed;
   [%expect {| true |}];
   print graph;
-  [%expect
-    {|
+  [%expect {|
         __L0: (Assign ((dst (Register A)) (src (Const 0))))
           branch:
             fallthrough to __L1
@@ -51,24 +50,18 @@ let%expect_test "test updated replacement" =
   printf "%b" changed;
   [%expect {| true |}];
   print graph;
-  [%expect
-    {|
+  [%expect {|
          __L0: (Assign ((dst (Register A)) (src (Const 0))))
            branch:
-             fallthrough to __L3
+             fallthrough to __L1
          __L1: (Assign ((dst (Register A)) (src (Const 1))))
            references:
-             Fallthrough from __L3
+             Fallthrough from __L0
            branch:
              fallthrough to __L2
          __L2: (Putc (Const 1))
            references:
-             Fallthrough from __L1
-         __L3: (Assign ((dst (Register A)) (src (Const 0))))
-           references:
-             Fallthrough from __L0
-           branch:
-             fallthrough to __L1 |}]
+             Fallthrough from __L1 |}]
 
 let%expect_test "test variable is invalidated" =
   let graph =
@@ -81,26 +74,20 @@ let%expect_test "test variable is invalidated" =
   in
   let changed = propagate graph in
   printf "%b" changed;
-  [%expect {| true |}];
+  [%expect {| false |}];
   print graph;
-  [%expect
-    {|
+  [%expect {|
     __L0: (Assign ((dst (Register A)) (src (Var (Register B)))))
       branch:
-        fallthrough to __L3
+        fallthrough to __L1
     __L1: (Assign ((dst (Register B)) (src (Const 1))))
       references:
-        Fallthrough from __L3
+        Fallthrough from __L0
       branch:
         fallthrough to __L2
     __L2: (Putc (Var (Register A)))
       references:
-        Fallthrough from __L1
-    __L3: (Assign ((dst (Register A)) (src (Var (Register B)))))
-      references:
-        Fallthrough from __L0
-      branch:
-        fallthrough to __L1 |}]
+        Fallthrough from __L1 |}]
 
 let%expect_test "test merge from two parents when matching" =
   (* A = 0; jump putc; A = 0; jump putc; putc A*)
@@ -138,7 +125,7 @@ let%expect_test "test merge from two parents when matching" =
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter
     [ first_assignment; first_jump; second_assignment; second_jump; target ]
-    ~f:(Graph.add_node graph);
+    ~f:(Graph.register_node graph);
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
@@ -202,7 +189,7 @@ let%expect_test "test merge from two parents when conflicting" =
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter
     [ first_assignment; first_jump; second_assignment; second_jump; target ]
-    ~f:(Graph.add_node graph);
+    ~f:(Graph.register_node graph);
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];
@@ -260,7 +247,7 @@ let%expect_test "test self loop tricky optimization" =
   Node.set_references jump [ { from = second_assignment; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter [ first_assignment; putc; second_assignment; jump ] ~f:(fun node ->
-      Graph.add_node graph node);
+      Graph.register_node graph node);
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
@@ -317,7 +304,7 @@ let%expect_test "test self loop with contradicting mappings" =
   Node.set_references jump [ { from = second_assignment; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter [ first_assignment; putc; second_assignment; jump ] ~f:(fun node ->
-      Graph.add_node graph node);
+      Graph.register_node graph node);
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];

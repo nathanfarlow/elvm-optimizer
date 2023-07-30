@@ -16,7 +16,11 @@ let create nodes =
 let nodes t = t.nodes
 let find_blocks t = Hashtbl.filter t.nodes ~f:Node.is_top_level
 let fresh_label t = t.fresh_label ()
-let add_node t node = Hashtbl.add_exn t.nodes ~key:(Node.label node) ~data:node
+
+let register_node t node =
+  Hashtbl.add_exn t.nodes ~key:(Node.label node) ~data:node
+
+let unregister_node t = Hashtbl.remove t.nodes
 
 module For_tests (Element : Sexpable.S) = struct
   module Node_test = Node.For_tests (Element)

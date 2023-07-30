@@ -9,13 +9,12 @@ struct
   let create = Fn.id
 
   let substitute_all stmt mappings =
-    let mappings = Mapping.to_alist mappings in
-    List.fold mappings ~init:(stmt, false) ~f:(fun acc (left, right) ->
-        let stmt, has_substituted_already = acc in
-        let stmt, just_substituted =
+    List.fold (Mapping.to_alist mappings) ~init:(stmt, false)
+      ~f:(fun (stmt, did_substitute) (left, right) ->
+        let stmt', did_substitute' =
           Statement.substitute_var_to_exp stmt ~from:left ~to_:right
         in
-        (stmt, has_substituted_already || just_substituted))
+        (stmt', did_substitute || did_substitute'))
 
   let get_end_mappings get_prelim_mappings node =
     let prelim = get_prelim_mappings node in
@@ -36,39 +35,17 @@ struct
         mappings)
       ~on_cycle:(fun _ -> Mapping.empty)
 
-  let prepend_assignment graph node left right =
-    let stmt = Statement.from_mapping { from = left; to_ = right } in
-    let label = Graph.fresh_label graph in
-    let new_node = Node.create ~label ~stmt in
-    Node.prepend_node node new_node;
-    Graph.add_node graph new_node
-
-  let invalidate_mappings graph node prelim =
-    match Statement.get_mapping_from_assignment (Node.stmt node) with
-    | Some { from; to_ } ->
-        let Mapping.{ valid; invalid } = Mapping.update prelim ~from ~to_ in
-        let invalid_as_list = Mapping.to_alist invalid in
-        List.iter invalid_as_list ~f:(fun (left, right) ->
-            prepend_assignment graph node left right);
-        (valid, List.length invalid_as_list > 0)
-    | None -> (prelim, false)
-
-  let update_statement node mappings =
-    let updated_stmt, did_update = substitute_all (Node.stmt node) mappings in
+  let optimize_node node get_prelim_mappings =
+    let prelim = get_prelim_mappings node in
+    let updated_stmt, did_update = substitute_all (Node.stmt node) prelim in
     Node.set_stmt node updated_stmt;
     did_update
-
-  let optimize_node graph (node : Statement.t Node.t) get_prelim_mappings =
-    let prelim = get_prelim_mappings node in
-    let did_update = update_statement node prelim in
-    let _, did_prepend = invalidate_mappings graph node prelim in
-    did_prepend || did_update
 
   let optimize _ graph =
     let get_prelim_mappings = make_get_prelim_mappings () in
     Hashtbl.fold
       (Hashtbl.copy (Graph.nodes graph))
       ~init:false
-      ~f:(fun ~key:_ ~data:node acc ->
-        optimize_node graph node get_prelim_mappings || acc)
+      ~f:(fun ~key:_ ~data:node did_optimize ->
+        optimize_node node get_prelim_mappings || did_optimize)
 end

@@ -11,6 +11,7 @@ module rec Node : sig
   val add_reference : 'a t -> 'a Reference.t -> unit
   val set_branch : 'a t -> 'a Branch.t option -> unit
   val prepend_node : 'a t -> 'a t -> unit
+  val detach : 'a t -> unit
   val is_top_level : 'a t -> bool
 
   module For_tests (Element : Sexpable.S) : sig
@@ -61,6 +62,16 @@ end = struct
     other.references <- t.references;
     other.branch <- Some (Fallthrough t);
     t.references <- [ { from = other; type_ = Fallthrough } ]
+
+  let detach t =
+    match t.branch with
+    | Some (Fallthrough target) ->
+        List.map t.references ~f:(fun r -> r.from)
+        |> List.iter ~f:(update_branch_target ~old:t ~new_:target);
+        target.references <- target.references @ t.references;
+        t.references <- [];
+        t.branch <- None
+    | _ -> failwith "Cannot detach a node that doesn't have a fallthrough"
 
   let is_top_level t =
     match t.references with
