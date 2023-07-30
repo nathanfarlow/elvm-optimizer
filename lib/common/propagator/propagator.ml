@@ -65,9 +65,10 @@ struct
     did_prepend || did_update
 
   let optimize _ graph =
+    let get_prelim_mappings = make_get_prelim_mappings () in
     Hashtbl.fold
       (Hashtbl.copy (Graph.nodes graph))
       ~init:false
       ~f:(fun ~key:_ ~data:node acc ->
-        optimize_node graph node (make_get_prelim_mappings ()) || acc)
+        optimize_node graph node get_prelim_mappings || acc)
 end
