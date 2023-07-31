@@ -42,11 +42,11 @@ let%expect_test "test update which invalidates another mapping bc new var is \
   print invalid;
   [%expect {| (((Register A) (Var (Register B)))) |}]
 
-let%expect_test "test merge with empty" =
+let%expect_test "test intersection with empty" =
   let Mapping.{ valid = mapping; _ } =
     Mapping.update Mapping.empty ~from:(Register A) ~to_:(Const 0)
   in
-  let mapping = Mapping.merge Mapping.empty mapping in
+  let mapping = Mapping.intersection Mapping.empty mapping in
   print mapping;
   [%expect {| () |}]
 
@@ -60,6 +60,6 @@ let%expect_test "test merge keeps only identical mappings" =
   let Mapping.{ valid = second; _ } =
     Mapping.update second ~from:(Register B) ~to_:(Const 1)
   in
-  let mapping = Mapping.merge first second in
+  let mapping = Mapping.intersection first second in
   print mapping;
   [%expect {| (((Register A) (Const 0))) |}]

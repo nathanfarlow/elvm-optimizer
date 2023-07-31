@@ -6,7 +6,8 @@ module type S = sig
 
   val empty : t
   val update : t -> from:key -> to_:value -> update_result
-  val merge : t -> t -> t
+  val intersection : t -> t -> t
+  val diff : t -> t -> t
   val get : t -> key -> value option
   val to_alist : t -> (key * value) list
 end

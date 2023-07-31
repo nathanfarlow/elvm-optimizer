@@ -11,3 +11,9 @@ let memoize ~f ~on_cycle =
         data
   in
   g
+
+let get_all_branch_targets node =
+  match Node.branch node with
+  | None -> []
+  | Some (Fallthrough target) | Some (Unconditional_jump target) -> [ target ]
+  | Some (Conditional_jump { true_; false_ }) -> [ true_; false_ ]

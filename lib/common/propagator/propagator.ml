@@ -32,7 +32,7 @@ struct
         let mappings =
           List.map (Node.references node) ~f:(fun parent ->
               get_end_mappings get_prelim_mappings parent.from)
-          |> List.reduce ~f:Mapping.merge
+          |> List.reduce ~f:Mapping.intersection
           |> Option.value ~default:Mapping.empty
         in
         mappings)
@@ -45,37 +45,33 @@ struct
     Node.prepend_node node new_node;
     Graph.register_node graph new_node
 
-  let invalidate_mappings graph node prelim =
-    match Statement.get_mapping_from_assignment (Node.stmt node) with
-    | Some { from; to_ } ->
-        (* delete the assignment, since we have it in our mappings now. *)
-        Node.set_stmt node Statement.nop;
-        (* write down the mappings that were invalidated by this assignment,
-           unless said mapping is writing to the same variable. *)
-        let Mapping.{ invalid; _ } = Mapping.update prelim ~from ~to_ in
-        Mapping.to_alist invalid
-        |> List.filter ~f:(fun (left, _) -> not (Var.equal left from))
-        |> List.iter ~f:(fun (left, right) ->
-               prepend_assignment graph node left right)
-    | None -> ()
+  let get_branch_dependencies node get_prelim_mappings =
+    Graph_util.get_all_branch_targets node
+    |> List.map ~f:get_prelim_mappings
+    |> List.reduce ~f:Mapping.intersection
+    |> Option.value ~default:Mapping.empty
 
   let optimize_node graph node get_prelim_mappings =
-    let prelim = get_prelim_mappings node in
-    let stmt = Node.stmt node in
-    match Node.branch node with
-    | None ->
-        (* write down all mappings when we reach a terminal node, like a jump register *)
-        Mapping.to_alist prelim
-        |> List.iter ~f:(fun (left, right) ->
-               prepend_assignment graph node left right);
-        false
-    | Some _ ->
-        (* update the statement in this node to reflect the mappings *)
-        let updated_stmt, did_update = substitute_all stmt prelim in
-        Node.set_stmt node updated_stmt;
-        (* write down mappings which were invalidated from an assignment of this statement *)
-        invalidate_mappings graph node prelim;
-        did_update
+    let end_mappings = get_end_mappings get_prelim_mappings node in
+    let obligations = get_branch_dependencies node get_prelim_mappings in
+    let valid = Mapping.intersection obligations end_mappings in
+    let invalid = Mapping.diff end_mappings valid |> Mapping.to_alist in
+    let invalid' =
+      match Statement.get_mapping_from_assignment (Node.stmt node) with
+      | Some { from; _ } ->
+          (* nop out assignment while we're here *)
+          Node.set_stmt node Statement.nop;
+          (* don't include the current assignment variable in the invalid list *)
+          List.filter invalid ~f:(fun (left, _) -> not (Var.equal left from))
+      | _ -> invalid
+    in
+    (* prepend invalidated mappings *)
+    List.iter invalid' ~f:(fun (left, right) ->
+        prepend_assignment graph node left right);
+    (* update statement according to existing preliminary mappings *)
+    let updated_stmt, did_update = substitute_all (Node.stmt node) valid in
+    Node.set_stmt node updated_stmt;
+    did_update
 
   let optimize _ graph =
     let get_prelim_mappings = make_get_prelim_mappings () in

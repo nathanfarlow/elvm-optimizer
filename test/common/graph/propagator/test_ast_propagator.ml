@@ -110,26 +110,21 @@ let%expect_test "test variable is invalidated" =
     {|
     __L0: Nop
       branch:
-        fallthrough to __L4
+        fallthrough to __L1
     __L1: Nop
       references:
-        Fallthrough from __L4
+        Fallthrough from __L0
       branch:
         fallthrough to __L2
     __L2: (Putc (Var (Register A)))
       references:
         Fallthrough from __L1
       branch:
-        fallthrough to __L5
+        fallthrough to __L4
     __L3: Exit
       references:
-        Fallthrough from __L5
-    __L4: (Assign ((dst (Register A)) (src (Var (Register B)))))
-      references:
-        Fallthrough from __L0
-      branch:
-        fallthrough to __L1
-    __L5: (Assign ((dst (Register B)) (src (Const 1))))
+        Fallthrough from __L4
+    __L4: (Assign ((dst (Register B)) (src (Const 1))))
       references:
         Fallthrough from __L2
       branch:
@@ -264,23 +259,33 @@ let%expect_test "test merge from two parents when conflicting" =
   print graph;
   [%expect
     {|
-    assign_1: Nop
-      branch:
-        fallthrough to jump_1
-    assign_2: Nop
+    __L0: (Assign ((dst (Register A)) (src (Const 1))))
+      references:
+        Fallthrough from assign_2
       branch:
         fallthrough to jump_2
+    __L1: (Assign ((dst (Register A)) (src (Const 0))))
+      references:
+        Fallthrough from assign_1
+      branch:
+        fallthrough to jump_1
+    assign_1: Nop
+      branch:
+        fallthrough to __L1
+    assign_2: Nop
+      branch:
+        fallthrough to __L0
     exit: Exit
       references:
         Fallthrough from target
     jump_1: (Jump ((target (Label target)) (cond ())))
       references:
-        Fallthrough from assign_1
+        Fallthrough from __L1
       branch:
         unconditional jump to target
     jump_2: (Jump ((target (Label target)) (cond ())))
       references:
-        Fallthrough from assign_2
+        Fallthrough from __L0
       branch:
         unconditional jump to target
     target: (Putc (Var (Register A)))
@@ -323,13 +328,19 @@ let%expect_test "test self loop tricky optimization" =
       Graph.register_node graph node);
   let changed = propagate graph in
   printf "%b" changed;
-  [%expect {| true |}];
+  [%expect {| false |}];
   print graph;
   [%expect
     {|
-    assign_1: Nop
+    __L0: (Assign ((dst (Register A)) (src (Const 0))))
+      references:
+        Fallthrough from assign_1
+        Jump from jump
       branch:
         fallthrough to putc
+    assign_1: Nop
+      branch:
+        fallthrough to __L0
     assign_2: Nop
       references:
         Fallthrough from putc
@@ -339,11 +350,10 @@ let%expect_test "test self loop tricky optimization" =
       references:
         Fallthrough from assign_2
       branch:
-        unconditional jump to putc
-    putc: (Putc (Const 0))
+        unconditional jump to __L0
+    putc: (Putc (Var (Register A)))
       references:
-        Fallthrough from assign_1
-        Jump from jump
+        Fallthrough from __L0
       branch:
         fallthrough to assign_2 |}]
 
@@ -384,6 +394,11 @@ let%expect_test "test self loop with contradicting mappings" =
   print graph;
   [%expect
     {|
+    __L0: (Assign ((dst (Register A)) (src (Const 1))))
+      references:
+        Fallthrough from assign_2
+      branch:
+        fallthrough to jump
     assign_1: Nop
       branch:
         fallthrough to putc
@@ -391,10 +406,10 @@ let%expect_test "test self loop with contradicting mappings" =
       references:
         Fallthrough from putc
       branch:
-        fallthrough to jump
+        fallthrough to __L0
     jump: (Jump ((target (Label putc)) (cond ())))
       references:
-        Fallthrough from assign_2
+        Fallthrough from __L0
       branch:
         unconditional jump to putc
     putc: (Putc (Var (Register A)))
@@ -429,7 +444,7 @@ let%expect_test "test repeated addition" =
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {|
-    true |}];
+    false |}];
   print graph;
   [%expect
     {|
