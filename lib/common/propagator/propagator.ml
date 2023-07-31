@@ -19,32 +19,40 @@ struct
         in
         (stmt', did_substitute || did_substitute'))
 
+  (* type op = Merge of (op * op) | Intersection of (op * op) | Empty | Mapping of Mapping.t *)
+
   let make_mappings () =
-    let reduce_mappings get_mappings node =
-      get_mappings node
-      |> List.map ~f:(fun Statement.{ from; to_ } ->
-             Mapping.(update empty ~from ~to_).valid)
-      |> List.reduce ~f:Mapping.intersection
-      |> Option.value ~default:Mapping.empty
-    in
     (* gets the mappings which are living at the end of this node *)
     let get_end_mappings get_prelim_mappings node =
       let prelim_mappings = get_prelim_mappings node in
-      match Statement.get_mapping_from_assignment (Node.stmt node) with
-      | Some mapping -> mapping :: prelim_mappings
-      | None -> prelim_mappings
+      let local_mapping =
+        substitute_all (Node.stmt node)
+          (Option.value prelim_mappings ~default:Mapping.empty)
+        |> fun (stmt, _) -> Statement.get_mapping_from_assignment stmt
+      in
+      match (prelim_mappings, local_mapping) with
+      | Some prelim_mappings, Some { from; to_ } ->
+          Some Mapping.(update prelim_mappings ~from ~to_).valid
+      | Some prelim_mappings, None -> Some prelim_mappings
+      | None, Some { from; to_ } -> Some Mapping.(update empty ~from ~to_).valid
+      | None, None -> None
     in
     (* gets the mappings which are living at the start of this node *)
     let get_prelim_mappings =
       Graph_util.memoize
         ~f:(fun node get_prelim_mappings ->
           Node.references node
-          |> List.concat_map ~f:(fun { from; _ } ->
-                 get_end_mappings get_prelim_mappings from))
-        ~on_cycle:(fun _ -> [])
+          |> List.map ~f:(fun Node.Reference.{ from; _ } ->
+                 get_end_mappings get_prelim_mappings from)
+          |> List.filter_opt
+          |> List.reduce ~f:Mapping.intersection)
+        ~on_cycle:(fun _ -> None)
     in
-    ( reduce_mappings get_prelim_mappings,
-      reduce_mappings (get_end_mappings get_prelim_mappings) )
+    ( (fun node ->
+        get_prelim_mappings node |> Option.value ~default:Mapping.empty),
+      fun node ->
+        get_end_mappings get_prelim_mappings node
+        |> Option.value ~default:Mapping.empty )
 
   let prepend_assignment graph node left right =
     let stmt = Statement.from_mapping { from = left; to_ = right } in
