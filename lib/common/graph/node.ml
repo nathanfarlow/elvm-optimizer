@@ -64,11 +64,31 @@ end = struct
     t.references <- [ { from = other; type_ = Fallthrough } ]
 
   let detach t =
+    let rec slow_dedup ~equal = function
+      | [] -> []
+      | x :: xs ->
+          x :: slow_dedup (List.filter xs ~f:(fun y -> not (equal x y))) ~equal
+    in
     match t.branch with
     | Some (Fallthrough target) ->
+        (* update t's parents to jump to target instead *)
         List.map t.references ~f:(fun r -> r.from)
         |> List.iter ~f:(update_branch_target ~old:t ~new_:target);
-        target.references <- target.references @ t.references;
+        (* update target's references to include t's parents *)
+        target.references <-
+          target.references @ t.references
+          (* delete the fallthrough reference from t *)
+          |> List.filter ~f:(fun Reference.{ from; _ } ->
+                 not (String.equal from.label t.label))
+          (* deduplicate in case of conditional jump to both t and target *)
+          |> slow_dedup
+               ~equal:(fun
+                        Reference.{ from = x; type_ = x_t }
+                        { from = y; type_ = y_t }
+                      ->
+                 (* have to write this inline like this for weird "unsafe functor" compiler stuff *)
+                 String.equal x.label y.label && Reference.equal_type_ x_t y_t);
+        (* cleanup t *)
         t.references <- [];
         t.branch <- None
     | _ -> failwith "Cannot detach a node that doesn't have a fallthrough"
@@ -106,7 +126,7 @@ end = struct
 end
 
 and Reference : sig
-  type type_ = Jump | Fallthrough [@@deriving sexp]
+  type type_ = Jump | Fallthrough [@@deriving sexp, equal]
   type 'a t = { from : 'a Node.t; type_ : type_ }
 
   module For_tests (Element : Sexpable.S) : sig
@@ -114,7 +134,7 @@ and Reference : sig
       Element.t t -> node_to_string:(Element.t Node.t -> string) -> string
   end
 end = struct
-  type type_ = Jump | Fallthrough [@@deriving sexp]
+  type type_ = Jump | Fallthrough [@@deriving sexp, equal]
   type 'a t = { from : 'a Node.t; type_ : type_ }
 
   module For_tests (Element : Sexpable.S) = struct

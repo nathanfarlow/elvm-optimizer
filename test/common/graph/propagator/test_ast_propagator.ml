@@ -1,6 +1,8 @@
 open Elvm
-module Mapping = Propagator_mapping.Make (Ast.Variable) (Ast.Expression)
-module Propagator = Propagator.Make (Ast_statement) (Mapping)
+
+module Propagator =
+  Propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
+
 module Graph_tests = Graph.For_tests (Ast_statement)
 
 let propagator = Propagator.create ()
@@ -22,20 +24,33 @@ let fallthrough (stmts : Ast_statement.t list) =
 
 let%expect_test "test simple variable replacement" =
   let graph =
-    [ Assign { dst = Register A; src = Const 0 }; Putc (Var (Register A)) ]
+    [
+      Assign { dst = Register A; src = Const 0 }; Putc (Var (Register A)); Exit;
+    ]
     |> fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
   print graph;
-  [%expect {|
-        __L0: (Assign ((dst (Register A)) (src (Const 0))))
+  [%expect
+    {|
+        __L0: Nop
           branch:
             fallthrough to __L1
         __L1: (Putc (Const 0))
           references:
-            Fallthrough from __L0 |}]
+            Fallthrough from __L0
+          branch:
+            fallthrough to __L3
+        __L2: Exit
+          references:
+            Fallthrough from __L3
+        __L3: (Assign ((dst (Register A)) (src (Const 0))))
+          references:
+            Fallthrough from __L1
+          branch:
+            fallthrough to __L2 |}]
 
 let%expect_test "test updated replacement" =
   let graph =
@@ -43,25 +58,38 @@ let%expect_test "test updated replacement" =
       Assign { dst = Register A; src = Const 0 };
       Assign { dst = Register A; src = Const 1 };
       Putc (Var (Register A));
+      Exit;
     ]
     |> fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
-  [%expect {| true |}];
-  print graph;
   [%expect {|
-         __L0: (Assign ((dst (Register A)) (src (Const 0))))
+    true |}];
+  print graph;
+  [%expect
+    {|
+         __L0: Nop
            branch:
              fallthrough to __L1
-         __L1: (Assign ((dst (Register A)) (src (Const 1))))
+         __L1: Nop
            references:
              Fallthrough from __L0
            branch:
              fallthrough to __L2
          __L2: (Putc (Const 1))
            references:
-             Fallthrough from __L1 |}]
+             Fallthrough from __L1
+           branch:
+             fallthrough to __L4
+         __L3: Exit
+           references:
+             Fallthrough from __L4
+         __L4: (Assign ((dst (Register A)) (src (Const 1))))
+           references:
+             Fallthrough from __L2
+           branch:
+             fallthrough to __L3 |}]
 
 let%expect_test "test variable is invalidated" =
   let graph =
@@ -69,28 +97,46 @@ let%expect_test "test variable is invalidated" =
       Assign { dst = Register A; src = Var (Register B) };
       Assign { dst = Register B; src = Const 1 };
       Putc (Var (Register A));
+      Exit;
     ]
     |> fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
-  [%expect {| false |}];
-  print graph;
   [%expect {|
-    __L0: (Assign ((dst (Register A)) (src (Var (Register B)))))
+    false |}];
+  print graph;
+  [%expect
+    {|
+    __L0: Nop
       branch:
-        fallthrough to __L1
-    __L1: (Assign ((dst (Register B)) (src (Const 1))))
+        fallthrough to __L4
+    __L1: Nop
       references:
-        Fallthrough from __L0
+        Fallthrough from __L4
       branch:
         fallthrough to __L2
     __L2: (Putc (Var (Register A)))
       references:
-        Fallthrough from __L1 |}]
+        Fallthrough from __L1
+      branch:
+        fallthrough to __L5
+    __L3: Exit
+      references:
+        Fallthrough from __L5
+    __L4: (Assign ((dst (Register A)) (src (Var (Register B)))))
+      references:
+        Fallthrough from __L0
+      branch:
+        fallthrough to __L1
+    __L5: (Assign ((dst (Register B)) (src (Const 1))))
+      references:
+        Fallthrough from __L2
+      branch:
+        fallthrough to __L3 |}]
 
 let%expect_test "test merge from two parents when matching" =
-  (* A = 0; jump putc; A = 0; jump putc; putc A*)
+  (* A = 0; jump putc; A = 0; jump putc; putc A; exit*)
   let first_assignment =
     Node.create ~label:"assign_1"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
@@ -122,22 +168,36 @@ let%expect_test "test merge from two parents when matching" =
     [
       { from = first_jump; type_ = Jump }; { from = second_jump; type_ = Jump };
     ];
+  let exit = Node.create ~label:"exit" ~stmt:Ast_statement.Exit in
+  Node.set_branch target (Some (Fallthrough exit));
+  Node.set_references exit [ { from = target; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter
-    [ first_assignment; first_jump; second_assignment; second_jump; target ]
+    [
+      first_assignment; first_jump; second_assignment; second_jump; target; exit;
+    ]
     ~f:(Graph.register_node graph);
   let changed = propagate graph in
   printf "%b" changed;
-  [%expect {| true |}];
+  [%expect {|
+    true |}];
   print graph;
   [%expect
     {|
-     assign_1: (Assign ((dst (Register A)) (src (Const 0))))
+     __L0: (Assign ((dst (Register A)) (src (Const 0))))
+       references:
+         Fallthrough from target
+       branch:
+         fallthrough to exit
+     assign_1: Nop
        branch:
          fallthrough to jump_1
-     assign_2: (Assign ((dst (Register A)) (src (Const 0))))
+     assign_2: Nop
        branch:
          fallthrough to jump_2
+     exit: Exit
+       references:
+         Fallthrough from __L0
      jump_1: (Jump ((target (Label target)) (cond ())))
        references:
          Fallthrough from assign_1
@@ -151,10 +211,12 @@ let%expect_test "test merge from two parents when matching" =
      target: (Putc (Const 0))
        references:
          Jump from jump_1
-         Jump from jump_2 |}]
+         Jump from jump_2
+       branch:
+         fallthrough to __L0 |}]
 
 let%expect_test "test merge from two parents when conflicting" =
-  (* A = 0; jump putc; A = 1; jump putc; putc A*)
+  (* A = 0; jump putc; A = 1; jump putc; putc A; exit*)
   let first_assignment =
     Node.create ~label:"assign_1"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
@@ -186,22 +248,31 @@ let%expect_test "test merge from two parents when conflicting" =
     [
       { from = first_jump; type_ = Jump }; { from = second_jump; type_ = Jump };
     ];
+  let exit = Node.create ~label:"exit" ~stmt:Ast_statement.Exit in
+  Node.set_branch target (Some (Fallthrough exit));
+  Node.set_references exit [ { from = target; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter
-    [ first_assignment; first_jump; second_assignment; second_jump; target ]
+    [
+      first_assignment; first_jump; second_assignment; second_jump; target; exit;
+    ]
     ~f:(Graph.register_node graph);
   let changed = propagate graph in
   printf "%b" changed;
-  [%expect {| false |}];
+  [%expect {|
+    false |}];
   print graph;
   [%expect
     {|
-    assign_1: (Assign ((dst (Register A)) (src (Const 0))))
+    assign_1: Nop
       branch:
         fallthrough to jump_1
-    assign_2: (Assign ((dst (Register A)) (src (Const 1))))
+    assign_2: Nop
       branch:
         fallthrough to jump_2
+    exit: Exit
+      references:
+        Fallthrough from target
     jump_1: (Jump ((target (Label target)) (cond ())))
       references:
         Fallthrough from assign_1
@@ -215,7 +286,9 @@ let%expect_test "test merge from two parents when conflicting" =
     target: (Putc (Var (Register A)))
       references:
         Jump from jump_1
-        Jump from jump_2 |}]
+        Jump from jump_2
+      branch:
+        fallthrough to exit |}]
 
 let%expect_test "test self loop tricky optimization" =
   (* A = 0; putc A; A = 0; goto putc *)
@@ -254,10 +327,10 @@ let%expect_test "test self loop tricky optimization" =
   print graph;
   [%expect
     {|
-    assign_1: (Assign ((dst (Register A)) (src (Const 0))))
+    assign_1: Nop
       branch:
         fallthrough to putc
-    assign_2: (Assign ((dst (Register A)) (src (Const 0))))
+    assign_2: Nop
       references:
         Fallthrough from putc
       branch:
@@ -311,10 +384,10 @@ let%expect_test "test self loop with contradicting mappings" =
   print graph;
   [%expect
     {|
-    assign_1: (Assign ((dst (Register A)) (src (Const 0))))
+    assign_1: Nop
       branch:
         fallthrough to putc
-    assign_2: (Assign ((dst (Register A)) (src (Const 1))))
+    assign_2: Nop
       references:
         Fallthrough from putc
       branch:
@@ -330,3 +403,57 @@ let%expect_test "test self loop with contradicting mappings" =
         Jump from jump
       branch:
         fallthrough to assign_2 |}]
+
+let%expect_test "test repeated addition" =
+  let graph =
+    [
+      Assign
+        {
+          dst = Register A;
+          src = Add [ Ast.Expression.Var (Register A); Const 1 ];
+        };
+      Assign
+        {
+          dst = Register A;
+          src = Add [ Ast.Expression.Var (Register A); Const 1 ];
+        };
+      Assign
+        {
+          dst = Register A;
+          src = Add [ Ast.Expression.Var (Register A); Const 1 ];
+        };
+      Exit;
+    ]
+    |> fallthrough
+  in
+  let changed = propagate graph in
+  printf "%b" changed;
+  [%expect {|
+    true |}];
+  print graph;
+  [%expect
+    {|
+    __L0: Nop
+      branch:
+        fallthrough to __L1
+    __L1: Nop
+      references:
+        Fallthrough from __L0
+      branch:
+        fallthrough to __L2
+    __L2: Nop
+      references:
+        Fallthrough from __L1
+      branch:
+        fallthrough to __L4
+    __L3: Exit
+      references:
+        Fallthrough from __L4
+    __L4: (Assign
+     ((dst (Register A))
+      (src
+       (Add ((Const 1) (Add ((Const 1) (Add ((Var (Register A)) (Const 1))))))))))
+      references:
+        Fallthrough from __L2
+      branch:
+        fallthrough to __L3 |}]

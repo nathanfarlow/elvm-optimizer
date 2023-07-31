@@ -1,6 +1,8 @@
 open Elvm
-module Mapping = Propagator_mapping.Make (Ast.Variable) (Ast.Expression)
-module Eliminator = Eliminator.Make (Ast_statement) (Mapping)
+
+module Eliminator =
+  Eliminator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
+
 module Graph_tests = Graph.For_tests (Ast_statement)
 
 let eliminator = Eliminator.create ()
@@ -15,12 +17,19 @@ let%expect_test "simple expression is eliminated" =
   in
   let changed = eliminate graph in
   printf "%b" changed;
-  [%expect {| true |}];
-  print graph;
   [%expect {|
-    __L0: (Assign ((dst (Register A)) (src (Const 0))))
+    false |}];
+  print graph;
+  [%expect
+    {|
+    __L0: Nop
       branch:
-        fallthrough to __L1
-    __L1: (Putc (Var (Register A)))
+        fallthrough to __L2
+    __L1: (Putc (Const 0))
       references:
-        Fallthrough from __L0 |}]
+        Fallthrough from __L2
+    __L2: (Assign ((dst (Register A)) (src (Const 0))))
+      references:
+        Fallthrough from __L0
+      branch:
+        fallthrough to __L1 |}]
