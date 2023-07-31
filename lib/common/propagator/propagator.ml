@@ -59,25 +59,25 @@ struct
     let invalid' =
       match Statement.get_mapping_from_assignment (Node.stmt node) with
       | Some { from; _ } ->
-          (* nop out assignment *)
+          (* nop out assignment, since assignment is known in mappings *)
           Node.set_stmt node Statement.nop;
-          (* don't include the current assignment variable in the invalid list *)
+          (* don't write down the previous mapping of this variable,
+             since the mappings already reflect the change*)
           List.filter invalid ~f:(fun (left, _) -> not (Var.equal left from))
       | _ -> invalid
     in
-    (* prepend invalidated mappings *)
+    (* write down invalidated mappings *)
     List.iter invalid' ~f:(fun (left, right) ->
         prepend_assignment graph node left right);
-    (* update statement according to existing preliminary mappings *)
+    (* update statement according to valid mappings *)
     let updated_stmt, did_update = substitute_all (Node.stmt node) valid in
     Node.set_stmt node updated_stmt;
     did_update
 
   let optimize _ graph =
     let get_prelim_mappings = make_get_prelim_mappings () in
-    let copy = Hashtbl.copy (Graph.nodes graph) in
-    (* precompute preliminary mappings of each node so we can mutate the graph *)
-    Hashtbl.iter copy ~f:(fun node -> ignore @@ get_prelim_mappings node);
-    Hashtbl.fold copy ~init:false ~f:(fun ~key:_ ~data:node acc ->
-        optimize_node graph node get_prelim_mappings || acc)
+    (* shallow copy graph nodes map so we can mutate graph as we fold *)
+    Hashtbl.copy (Graph.nodes graph)
+    |> Hashtbl.fold ~init:false ~f:(fun ~key:_ ~data:node acc ->
+           optimize_node graph node get_prelim_mappings || acc)
 end
