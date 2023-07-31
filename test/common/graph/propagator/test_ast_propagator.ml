@@ -301,6 +301,7 @@ let%expect_test "test substitutes after putc" =
       Assign { dst = Register A; src = Const 0 };
       Putc (Var (Register A));
       Putc (Var (Register A));
+      Exit;
     ]
     |> fallthrough
   in
@@ -318,15 +319,20 @@ let%expect_test "test substitutes after putc" =
       references:
         Fallthrough from __L0
       branch:
-        fallthrough to __L3
+        fallthrough to __L2
     __L2: (Putc (Const 0))
-      references:
-        Fallthrough from __L3
-    __L3: (Assign ((dst (Register A)) (src (Const 0))))
       references:
         Fallthrough from __L1
       branch:
-        fallthrough to __L2 |}]
+        fallthrough to __L4
+    __L3: Exit
+      references:
+        Fallthrough from __L4
+    __L4: (Assign ((dst (Register A)) (src (Const 0))))
+      references:
+        Fallthrough from __L2
+      branch:
+        fallthrough to __L3 |}]
 
 let%expect_test "test self loop tricky optimization" =
   (* A = 0; putc A; A = 0; goto putc *)

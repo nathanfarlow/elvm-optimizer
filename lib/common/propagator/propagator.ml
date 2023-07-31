@@ -20,11 +20,11 @@ struct
         (stmt', did_substitute || did_substitute'))
 
   let get_end_mappings get_prelim_mappings node =
-    let prelim = get_prelim_mappings node in
-    let stmt, _ = substitute_all (Node.stmt node) prelim in
+    let prelim_mappings = get_prelim_mappings node in
+    let stmt, _ = substitute_all (Node.stmt node) prelim_mappings in
     match Statement.get_mapping_from_assignment stmt with
-    | Some { from; to_ } -> (Mapping.update prelim ~from ~to_).valid
-    | None -> prelim
+    | Some { from; to_ } -> (Mapping.update prelim_mappings ~from ~to_).valid
+    | None -> prelim_mappings
 
   let make_get_prelim_mappings () =
     Graph_util.memoize
@@ -59,7 +59,7 @@ struct
     let invalid' =
       match Statement.get_mapping_from_assignment (Node.stmt node) with
       | Some { from; _ } ->
-          (* nop out assignment while we're here *)
+          (* nop out assignment *)
           Node.set_stmt node Statement.nop;
           (* don't include the current assignment variable in the invalid list *)
           List.filter invalid ~f:(fun (left, _) -> not (Var.equal left from))
@@ -69,9 +69,7 @@ struct
     List.iter invalid' ~f:(fun (left, right) ->
         prepend_assignment graph node left right);
     (* update statement according to existing preliminary mappings *)
-    let updated_stmt, did_update =
-      substitute_all (Node.stmt node) end_mappings
-    in
+    let updated_stmt, did_update = substitute_all (Node.stmt node) valid in
     Node.set_stmt node updated_stmt;
     did_update
 

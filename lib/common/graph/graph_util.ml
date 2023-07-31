@@ -11,6 +11,7 @@ let memoize ~f ~on_cycle =
           Hash_set.add evaluating label;
           let data = f node g in
           Hash_set.remove evaluating label;
+          (* don't cache computations if we are still evaluating another node *)
           if Hash_set.is_empty evaluating then Hashtbl.set memo ~key:label ~data;
           data)
   in
