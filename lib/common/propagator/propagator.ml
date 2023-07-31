@@ -19,24 +19,32 @@ struct
         in
         (stmt', did_substitute || did_substitute'))
 
-  let get_end_mappings get_prelim_mappings node =
-    let prelim_mappings = get_prelim_mappings node in
-    let stmt, _ = substitute_all (Node.stmt node) prelim_mappings in
-    match Statement.get_mapping_from_assignment stmt with
-    | Some { from; to_ } -> (Mapping.update prelim_mappings ~from ~to_).valid
-    | None -> prelim_mappings
-
-  let make_get_prelim_mappings () =
-    Graph_util.memoize
-      ~f:(fun node get_prelim_mappings ->
-        let mappings =
-          List.map (Node.references node) ~f:(fun parent ->
-              get_end_mappings get_prelim_mappings parent.from)
-          |> List.reduce ~f:Mapping.intersection
-          |> Option.value ~default:Mapping.empty
-        in
-        mappings)
-      ~on_cycle:(fun _ -> Mapping.empty)
+  let make_mappings () =
+    let reduce_mappings get_mappings node =
+      get_mappings node
+      |> List.map ~f:(fun Statement.{ from; to_ } ->
+             Mapping.(update empty ~from ~to_).valid)
+      |> List.reduce ~f:Mapping.intersection
+      |> Option.value ~default:Mapping.empty
+    in
+    (* gets the mappings which are living at the end of this node *)
+    let get_end_mappings get_prelim_mappings node =
+      let prelim_mappings = get_prelim_mappings node in
+      match Statement.get_mapping_from_assignment (Node.stmt node) with
+      | Some mapping -> mapping :: prelim_mappings
+      | None -> prelim_mappings
+    in
+    (* gets the mappings which are living at the start of this node *)
+    let get_prelim_mappings =
+      Graph_util.memoize
+        ~f:(fun node get_prelim_mappings ->
+          Node.references node
+          |> List.concat_map ~f:(fun { from; _ } ->
+                 get_end_mappings get_prelim_mappings from))
+        ~on_cycle:(fun _ -> [])
+    in
+    ( reduce_mappings get_prelim_mappings,
+      reduce_mappings (get_end_mappings get_prelim_mappings) )
 
   let prepend_assignment graph node left right =
     let stmt = Statement.from_mapping { from = left; to_ = right } in
@@ -51,8 +59,8 @@ struct
     |> List.reduce ~f:Mapping.intersection
     |> Option.value ~default:Mapping.empty
 
-  let optimize_node graph node get_prelim_mappings =
-    let end_mappings = get_end_mappings get_prelim_mappings node in
+  let optimize_node graph node get_prelim_mappings get_end_mappings =
+    let end_mappings = get_end_mappings node in
     let obligations = get_branch_dependencies node get_prelim_mappings in
     let valid = Mapping.intersection obligations end_mappings in
     let invalid = Mapping.diff end_mappings valid |> Mapping.to_alist in
@@ -75,9 +83,9 @@ struct
     did_update
 
   let optimize _ graph =
-    let get_prelim_mappings = make_get_prelim_mappings () in
+    let get_prelim_mappings, get_end_mappings = make_mappings () in
     (* shallow copy graph nodes map so we can mutate graph as we fold *)
     Hashtbl.copy (Graph.nodes graph)
     |> Hashtbl.fold ~init:false ~f:(fun ~key:_ ~data:node acc ->
-           optimize_node graph node get_prelim_mappings || acc)
+           optimize_node graph node get_prelim_mappings get_end_mappings || acc)
 end
