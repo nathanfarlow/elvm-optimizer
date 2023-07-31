@@ -69,7 +69,9 @@ struct
     List.iter invalid' ~f:(fun (left, right) ->
         prepend_assignment graph node left right);
     (* update statement according to existing preliminary mappings *)
-    let updated_stmt, did_update = substitute_all (Node.stmt node) valid in
+    let updated_stmt, did_update =
+      substitute_all (Node.stmt node) end_mappings
+    in
     Node.set_stmt node updated_stmt;
     did_update
 

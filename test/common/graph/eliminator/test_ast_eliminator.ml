@@ -18,14 +18,14 @@ let%expect_test "simple expression is eliminated" =
   let changed = eliminate graph in
   printf "%b" changed;
   [%expect {|
-    false |}];
+    true |}];
   print graph;
   [%expect
     {|
     __L0: Nop
       branch:
         fallthrough to __L2
-    __L1: (Putc (Const 0))
+    __L1: (Putc (Var (Register A)))
       references:
         Fallthrough from __L2
     __L2: (Assign ((dst (Register A)) (src (Const 0))))
