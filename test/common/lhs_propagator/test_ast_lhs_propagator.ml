@@ -6,33 +6,19 @@ module Propagator =
 module Graph_tests = Graph.For_tests (Ast_statement)
 
 let propagator = Propagator.create ()
-let print graph = Graph_tests.to_string graph |> print_endline
 let propagate = Propagator.optimize propagator
-
-let fallthrough (stmts : Ast_statement.t list) =
-  let graph = Graph.create @@ Hashtbl.create (module String) in
-  let nodes =
-    List.map stmts ~f:(fun stmt ->
-        Node.create ~label:(Graph.fresh_label graph) ~stmt)
-  in
-  let pairs, _ = List.zip_with_remainder nodes (List.tl_exn nodes) in
-  List.iter pairs ~f:(fun (node, next_node) ->
-      Node.set_branch node (Some (Fallthrough next_node));
-      Node.set_references next_node [ { from = node; type_ = Fallthrough } ]);
-  List.iter nodes ~f:(Graph.register_node graph);
-  graph
 
 let%expect_test "test simple variable replacement" =
   let graph =
     [
       Assign { dst = Register A; src = Const 0 }; Putc (Var (Register A)); Exit;
     ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop
@@ -60,12 +46,12 @@ let%expect_test "test updated replacement" =
       Putc (Var (Register A));
       Exit;
     ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop
@@ -98,12 +84,12 @@ let%expect_test "test variable is invalidated" =
       Putc (Var (Register A));
       Exit;
     ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop
@@ -173,7 +159,7 @@ let%expect_test "test merge from two parents when matching" =
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: (Assign ((dst (Register A)) (src (Const 0))))
@@ -252,7 +238,7 @@ let%expect_test "test merge from two parents when conflicting" =
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: (Assign ((dst (Register A)) (src (Const 1))))
@@ -299,12 +285,12 @@ let%expect_test "test substitutes after putc" =
       Putc (Var (Register A));
       Exit;
     ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop
@@ -357,7 +343,7 @@ let%expect_test "test self loop tricky optimization" =
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     assign_1: Nop
@@ -409,7 +395,7 @@ let%expect_test "test self loop with contradicting mappings" =
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: (Assign ((dst (Register A)) (src (Const 1))))
@@ -457,12 +443,12 @@ let%expect_test "test repeated addition" =
         };
       Exit;
     ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop

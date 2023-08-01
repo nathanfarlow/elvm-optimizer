@@ -7,18 +7,16 @@ module Graph_tests = Graph.For_tests (Ast_statement)
 
 let eliminator = Eliminator.create ()
 let eliminate = Eliminator.optimize eliminator
-let print = Test_ast_lhs_propagator.print
-let fallthrough = Test_ast_lhs_propagator.fallthrough
 
 let%expect_test "simple expression is eliminated" =
   let graph =
     [ Assign { dst = Register A; src = Const 0 }; Putc (Const 0); Exit ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = eliminate graph in
   printf "%b" changed;
   [%expect {| true |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop
@@ -46,12 +44,12 @@ let%expect_test "expression is not eliminated when invalidated" =
       Putc (Const 0);
       Exit;
     ]
-    |> fallthrough
+    |> Ast_test_util.fallthrough
   in
   let changed = eliminate graph in
   printf "%b" changed;
   [%expect {| false |}];
-  print graph;
+  Ast_test_util.print_graph graph;
   [%expect
     {|
     __L0: Nop
