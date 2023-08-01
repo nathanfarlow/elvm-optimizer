@@ -17,8 +17,7 @@ let%expect_test "simple expression is eliminated" =
   in
   let changed = eliminate graph in
   printf "%b" changed;
-  [%expect {|
-    true |}];
+  [%expect {| true |}];
   print graph;
   [%expect
     {|
@@ -38,3 +37,41 @@ let%expect_test "simple expression is eliminated" =
         Fallthrough from __L1
       branch:
         fallthrough to __L2 |}]
+
+let%expect_test "expression is not eliminated when invalidated" =
+  let graph =
+    [
+      Assign { dst = Register A; src = Const 0 };
+      Assign { dst = Register A; src = Var (Register B) };
+      Putc (Const 0);
+      Exit;
+    ]
+    |> fallthrough
+  in
+  let changed = eliminate graph in
+  printf "%b" changed;
+  [%expect {| false |}];
+  print graph;
+  [%expect
+    {|
+    __L0: Nop
+      branch:
+        fallthrough to __L1
+    __L1: Nop
+      references:
+        Fallthrough from __L0
+      branch:
+        fallthrough to __L2
+    __L2: (Putc (Const 0))
+      references:
+        Fallthrough from __L1
+      branch:
+        fallthrough to __L4
+    __L3: Exit
+      references:
+        Fallthrough from __L4
+    __L4: (Assign ((dst (Register A)) (src (Var (Register B)))))
+      references:
+        Fallthrough from __L2
+      branch:
+        fallthrough to __L3 |}]
