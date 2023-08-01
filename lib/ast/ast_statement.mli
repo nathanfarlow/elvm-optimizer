@@ -21,11 +21,11 @@ include Statement_intf.S with type t := t
 include
   Propagator_statement_intf.S
     with type t := t
-     and type var = Ast.Variable.t
-     and type exp = Ast.Expression.t
+     and type lhs = Ast.Variable.t
+     and type rhs = Ast.Expression.t
 
 include
   Eliminator_statement_intf.S
     with type t := t
-     and type var := Ast.Variable.t
-     and type exp := Ast.Expression.t
+     and type lhs := Ast.Variable.t
+     and type rhs := Ast.Expression.t

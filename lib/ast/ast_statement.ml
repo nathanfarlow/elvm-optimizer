@@ -16,10 +16,10 @@ type t =
   | Nop
 [@@deriving sexp, equal, compare, hash]
 
-type var = Ast.Variable.t
-type exp = Ast.Expression.t
+type lhs = Ast.Variable.t
+type rhs = Ast.Expression.t
 
-type mapping = { from : Ast.Variable.t; to_ : Ast.Expression.t }
+type assignment = { from : Ast.Variable.t; to_ : Ast.Expression.t }
 [@@deriving sexp]
 
 let is_nop = equal Nop
@@ -31,7 +31,7 @@ let branch_type = function
   | Jump { cond = None; _ } -> Some Unconditional_jump
   | Jump { cond = Some _; _ } -> Some Conditional_jump
 
-let from_mapping { from; to_ } = Assign { dst = from; src = to_ }
+let from_assignment { from; to_ } = Assign { dst = from; src = to_ }
 
 let substitute ~from ~to_ = function
   | Assign { dst; src } ->
@@ -54,14 +54,14 @@ let substitute ~from ~to_ = function
   | Exit -> (Exit, false)
   | Nop -> (Nop, false)
 
-let substitute_var_to_exp t ~from ~to_ =
+let substitute_lhs_to_rhs t ~from ~to_ =
   let from = Ast.Expression.Var from in
   substitute t ~from ~to_
 
-let substitute_exp_to_var t ~from ~to_ =
+let substitute_rhs_to_lhs t ~from ~to_ =
   let to_ = Ast.Expression.Var to_ in
   substitute t ~from ~to_
 
-let get_mapping_from_assignment = function
+let get_assignment = function
   | Assign { dst; src } -> Some { from = dst; to_ = src }
   | _ -> None

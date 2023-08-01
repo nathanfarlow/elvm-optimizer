@@ -1,7 +1,9 @@
 module Make
     (Statement : Eliminator_statement_intf.S)
-    (Var : Propagator_var_intf.S with type t = Statement.var)
-    (_ : Propagator_exp_intf.S with type t = Statement.exp and type var := Var.t) : sig
+    (Lhs : Environment_lhs_intf.S with type t = Statement.lhs)
+    (_ : Environment_rhs_intf.S
+           with type t = Statement.rhs
+            and type lhs := Lhs.t) : sig
   type t
 
   val create : unit -> t

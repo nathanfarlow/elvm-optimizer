@@ -1,6 +1,6 @@
 module type S = sig
   type t [@@deriving sexp, equal]
-  type var
+  type lhs
 
-  val contains : t -> var -> bool
+  val contains : t -> lhs -> bool
 end
