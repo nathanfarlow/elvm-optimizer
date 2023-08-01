@@ -23,7 +23,6 @@ struct
         (* if a conditional jump statement was simplified to a fallthrough,
             (definitely a nop), then the condition was determined to always be false *)
         | Some Fallthrough ->
-            (* assert (Statement.is_nop node.stmt); *)
             assert (Statement.is_nop @@ Node.stmt node);
             (* delete this node from the true branch's references *)
             Node.set_references true_
