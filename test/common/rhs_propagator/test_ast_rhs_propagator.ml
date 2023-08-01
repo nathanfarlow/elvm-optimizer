@@ -1,14 +1,14 @@
 open Elvm
 
 module Eliminator =
-  Eliminator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
+  Rhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
 
 module Graph_tests = Graph.For_tests (Ast_statement)
 
 let eliminator = Eliminator.create ()
 let eliminate = Eliminator.optimize eliminator
-let print = Test_ast_propagator.print
-let fallthrough = Test_ast_propagator.fallthrough
+let print = Test_ast_lhs_propagator.print
+let fallthrough = Test_ast_lhs_propagator.fallthrough
 
 let%expect_test "simple expression is eliminated" =
   let graph =

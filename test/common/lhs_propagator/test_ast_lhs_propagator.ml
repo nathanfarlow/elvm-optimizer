@@ -1,7 +1,7 @@
 open Elvm
 
 module Propagator =
-  Propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
+  Lhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
 
 module Graph_tests = Graph.For_tests (Ast_statement)
 

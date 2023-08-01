@@ -1,5 +1,5 @@
 module Make
-    (Statement : Eliminator_statement_intf.S)
+    (Statement : Lhs_propagator_statement.S)
     (Lhs : Environment_lhs_intf.S with type t = Statement.lhs)
     (_ : Environment_rhs_intf.S
            with type t = Statement.rhs

@@ -19,13 +19,13 @@ type t =
 include Statement_intf.S with type t := t
 
 include
-  Propagator_statement_intf.S
+  Lhs_propagator_statement.S
     with type t := t
      and type lhs = Ast.Variable.t
      and type rhs = Ast.Expression.t
 
 include
-  Eliminator_statement_intf.S
+  Rhs_propagator_statement_intf.S
     with type t := t
      and type lhs := Ast.Variable.t
      and type rhs := Ast.Expression.t
