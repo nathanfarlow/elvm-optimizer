@@ -13,10 +13,6 @@ module rec Node : sig
   val prepend_node : 'a t -> 'a t -> unit
   val detach : 'a t -> unit
   val is_top_level : 'a t -> bool
-
-  module For_tests (Element : Sexpable.S) : sig
-    val to_string : Element.t t -> string
-  end
 end = struct
   type 'a t = {
     label : string;
@@ -64,11 +60,6 @@ end = struct
     t.references <- [ { from = other; type_ = Fallthrough } ]
 
   let detach t =
-    let rec slow_dedup ~equal = function
-      | [] -> []
-      | x :: xs ->
-          x :: slow_dedup (List.filter xs ~f:(fun y -> not (equal x y))) ~equal
-    in
     match t.branch with
     | Some (Fallthrough target) ->
         (* update t's parents to jump to target instead *)
@@ -81,13 +72,7 @@ end = struct
           |> List.filter ~f:(fun Reference.{ from; _ } ->
                  not (String.equal from.label t.label))
           (* deduplicate in case of conditional jump to both t and target *)
-          |> slow_dedup
-               ~equal:(fun
-                        Reference.{ from = x; type_ = x_t }
-                        { from = y; type_ = y_t }
-                      ->
-                 (* have to write this inline like this for weird "unsafe functor" compiler stuff *)
-                 String.equal x.label y.label && Reference.equal_type_ x_t y_t);
+          |> List.dedup_and_sort ~compare:Reference.compare;
         (* cleanup t *)
         t.references <- [];
         t.branch <- None
@@ -98,51 +83,21 @@ end = struct
     | [] -> true
     | [ { from; type_ = Jump } ] -> String.equal from.label t.label
     | _ -> false
-
-  module For_tests (Element : Sexpable.S) = struct
-    module Reference_tests = Reference.For_tests (Element)
-    module Branch_tests = Branch.For_tests (Element)
-
-    let to_string t =
-      (t.label ^ ": " ^ ([%sexp_of: Element.t] t.stmt |> Sexp.to_string_hum))
-      ::
-      (if not @@ List.is_empty t.references then
-         [ String_util.indent_string "references:" ~indent:1 ]
-       else [])
-      @ (t.references
-        |> List.map
-             ~f:(Reference_tests.to_string ~node_to_string:(fun n -> n.label))
-        |> List.map ~f:(String_util.indent_string ~indent:2))
-      @ (if Option.is_some t.branch then
-           [ String_util.indent_string "branch:" ~indent:1 ]
-         else [])
-      @ Option.value_map t.branch ~default:[] ~f:(fun node ->
-            [
-              Branch_tests.to_string node ~node_to_string:(fun n -> n.label)
-              |> String_util.indent_string ~indent:2;
-            ])
-      |> String.concat ~sep:"\n"
-  end
 end
 
 and Reference : sig
-  type type_ = Jump | Fallthrough [@@deriving sexp, equal]
+  type type_ = Jump | Fallthrough [@@deriving sexp, equal, compare]
   type 'a t = { from : 'a Node.t; type_ : type_ }
 
-  module For_tests (Element : Sexpable.S) : sig
-    val to_string :
-      Element.t t -> node_to_string:(Element.t Node.t -> string) -> string
-  end
+  val compare : 'a t -> 'a t -> int
 end = struct
-  type type_ = Jump | Fallthrough [@@deriving sexp, equal]
+  type type_ = Jump | Fallthrough [@@deriving sexp, equal, compare]
   type 'a t = { from : 'a Node.t; type_ : type_ }
 
-  module For_tests (Element : Sexpable.S) = struct
-    let to_string t ~node_to_string =
-      sprintf "%s from %s"
-        (Sexp.to_string_hum ([%sexp_of: type_] t.type_))
-        (node_to_string t.from)
-  end
+  let compare t other =
+    [%compare: string * type_]
+      (Node.label t.from, t.type_)
+      (Node.label other.from, other.type_)
 end
 
 and Branch : sig
@@ -150,27 +105,42 @@ and Branch : sig
     | Unconditional_jump of 'a Node.t
     | Conditional_jump of { true_ : 'a Node.t; false_ : 'a Node.t }
     | Fallthrough of 'a Node.t
-
-  module For_tests (Element : Sexpable.S) : sig
-    val to_string :
-      Element.t t -> node_to_string:(Element.t Node.t -> string) -> string
-  end
 end = struct
   type 'a t =
     | Unconditional_jump of 'a Node.t
     | Conditional_jump of { true_ : 'a Node.t; false_ : 'a Node.t }
     | Fallthrough of 'a Node.t
-
-  module For_tests (Element : Sexpable.S) = struct
-    let to_string t ~node_to_string =
-      match t with
-      | Unconditional_jump node ->
-          "unconditional jump to " ^ node_to_string node
-      | Conditional_jump { true_; false_ } ->
-          sprintf "conditional jump to true: %s false: %s"
-            (node_to_string true_) (node_to_string false_)
-      | Fallthrough node -> "fallthrough to " ^ node_to_string node
-  end
 end
 
 include Node
+
+module For_tests (Element : Sexpable.S) = struct
+  let ref_to_string (ref : Element.t Reference.t) =
+    sprintf "%s from %s"
+      (Sexp.to_string_hum ([%sexp_of: Reference.type_] ref.type_))
+      (Node.label ref.from)
+
+  let branch_to_string (branch : Element.t Branch.t) =
+    match branch with
+    | Unconditional_jump node -> "unconditional jump to " ^ Node.label node
+    | Conditional_jump { true_; false_ } ->
+        sprintf "conditional jump to true: %s false: %s" (Node.label true_)
+          (Node.label false_)
+    | Fallthrough node -> "fallthrough to " ^ Node.label node
+
+  let to_string node =
+    sprintf "%s: %s" (Node.label node)
+      (Sexp.to_string_hum ([%sexp_of: Element.t] (Node.stmt node)))
+    ::
+    (if not @@ List.is_empty (Node.references node) then
+       [ String_util.indent_string "references:" ~indent:1 ]
+     else [])
+    @ (Node.references node |> List.map ~f:ref_to_string
+      |> List.map ~f:(String_util.indent_string ~indent:2))
+    @ (if Option.is_some (Node.branch node) then
+         [ String_util.indent_string "branch:" ~indent:1 ]
+       else [])
+    @ Option.value_map (Node.branch node) ~default:[] ~f:(fun branch ->
+          [ branch_to_string branch |> String_util.indent_string ~indent:2 ])
+    |> String.concat ~sep:"\n"
+end

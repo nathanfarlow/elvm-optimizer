@@ -13,24 +13,11 @@ module rec Node : sig
   val prepend_node : 'a t -> 'a t -> unit
   val detach : 'a t -> unit
   val is_top_level : 'a t -> bool
-
-  module For_tests : functor (Element : Sexpable) -> sig
-    val to_string : Element.t t -> string
-  end
 end
 
 and Reference : sig
-  type type_ = Jump | Fallthrough
-
-  val sexp_of_type_ : type_ -> Sexp.t
-  val type__of_sexp : Sexp.t -> type_
-
+  type type_ = Jump | Fallthrough [@@deriving sexp]
   type 'a t = { from : 'a Node.t; type_ : type_ }
-
-  module For_tests : functor (Element : Sexpable) -> sig
-    val to_string :
-      Element.t t -> node_to_string:(Element.t Node.t -> string) -> string
-  end
 end
 
 and Branch : sig
@@ -38,11 +25,10 @@ and Branch : sig
     | Unconditional_jump of 'a Node.t
     | Conditional_jump of { true_ : 'a Node.t; false_ : 'a Node.t }
     | Fallthrough of 'a Node.t
-
-  module For_tests : functor (Element : Sexpable) -> sig
-    val to_string :
-      Element.t t -> node_to_string:(Element.t Node.t -> string) -> string
-  end
 end
 
 include module type of Node with type 'a t = 'a Node.t
+
+module For_tests : functor (Element : Sexpable) -> sig
+  val to_string : Element.t Node.t -> string
+end
