@@ -24,6 +24,13 @@ struct
     Lhs_map.merge t1 t2 ~f:(fun ~key:_ -> function
       | `Both (e1, e2) when Rhs.equal e1 e2 -> Some e1 | _ -> None)
 
+  let union t1 t2 =
+    (* keep entries from t1 and t2, unless they are not identical *)
+    Lhs_map.merge t1 t2 ~f:(fun ~key:_ -> function
+      | `Both (e1, e2) when Rhs.equal e1 e2 -> Some e1
+      | `Left e | `Right e -> Some e
+      | _ -> None)
+
   let diff t1 t2 =
     (* only keep entries from t1 which are not identical in t2 *)
     Lhs_map.merge t1 t2 ~f:(fun ~key:_ -> function

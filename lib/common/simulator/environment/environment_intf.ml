@@ -7,6 +7,7 @@ module type S = sig
   val empty : t
   val update : t -> from:lhs -> to_:rhs -> update_result
   val intersection : t -> t -> t
+  val union : t -> t -> t
   val diff : t -> t -> t
   val get : t -> lhs -> rhs option
   val to_alist : t -> (lhs * rhs) list

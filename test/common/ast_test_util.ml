@@ -27,7 +27,7 @@ let print_over_nodes graph ~f ~to_str =
   |> List.iter ~f:(fun (label, node) ->
          printf "%s: %s\n" label (f node |> to_str))
 
-let graph_simple_fallthrough_sequence =
+let graph_with_simple_fallthrough_sequence () =
   let diagram =
     {|
   ┌─────────────┐
@@ -39,20 +39,24 @@ let graph_simple_fallthrough_sequence =
   │__L1:        │
   │  mem[A] = 0 │
   └──────┬──────┘
-         │
          ▼
   ┌─────────────┐
   │__L2:        │
-  │    A = C    │
+  │ putc mem[A] │
   └──────┬──────┘
          ▼
   ┌─────────────┐
   │__L3:        │
-  │    putc A   │
+  │    A = C    │
   └──────┬──────┘
          ▼
   ┌─────────────┐
   │__L4:        │
+  │    putc A   │
+  └──────┬──────┘
+         ▼
+  ┌─────────────┐
+  │__L5:        │
   │     exit    │
   └─────────────┘ |}
   in
@@ -60,6 +64,7 @@ let graph_simple_fallthrough_sequence =
     [
       Assign { dst = Register A; src = Var (Register B) };
       Assign { dst = Memory (Var (Register A)); src = Const 0 };
+      Putc (Var (Memory (Var (Register A))));
       Assign { dst = Register A; src = Var (Register C) };
       Putc (Var (Register A));
       Exit;
@@ -68,7 +73,7 @@ let graph_simple_fallthrough_sequence =
   in
   (graph, diagram)
 
-let graph_with_two_parents =
+let graph_with_two_parents () =
   let diagram =
     {| 
     ┌─────────────┐      ┌─────────────┐
@@ -121,7 +126,7 @@ let graph_with_two_parents =
   in
   let b_right =
     Node.create ~label:"b_right"
-      ~stmt:(Ast_statement.Assign { dst = Register B; src = Const 0 })
+      ~stmt:(Ast_statement.Assign { dst = Register B; src = Const 1 })
   in
   let jmp_left =
     Node.create ~label:"jmp_left"
@@ -178,7 +183,7 @@ let graph_with_two_parents =
   in
   (graph, diagram)
 
-let graph_unconditional_self_loop =
+let graph_with_unconditional_self_loop () =
   let diagram =
     {|
 ┌─────────────┐
@@ -266,7 +271,7 @@ let graph_unconditional_self_loop =
   in
   (graph, diagram)
 
-let graph_conditional_self_loop =
+let graph_with_conditional_self_loop () =
   let diagram =
     {| 
     ┌─────────────┐
