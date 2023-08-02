@@ -19,54 +19,14 @@ struct
     get_final_env : Statement.t Node.t -> Environment.t;
   }
 
-  (* let create () =
-     (* gets the mappings which are living at the start of this node *)
-     let get_initial_env get_final_env node =
-       let resolved, cycles =
-         Node.references node
-         |> List.map ~f:(fun Node.Reference.{ from; _ } -> get_final_env from)
-         |> List.partition_map ~f:(function
-              | `Resolved x -> First x
-              | `Cycle x -> Second x)
-       in
-       let resolved =
-         List.reduce resolved ~f:Environment.intersection
-         |> Option.value ~default:Environment.empty
-       in
-       let cycles =
-         List.reduce cycles ~f:Environment.intersection
-         |> Option.value ~default:Environment.empty
-       in
-       let to_string env = Environment.sexp_of_t env |> Sexp.to_string_hum in
-       printf "for node %s, performing the union between\n%s\nand\n%s\n"
-         (Node.label node) (to_string resolved) (to_string cycles);
-       `Resolved (Environment.union resolved cycles)
-     in
-     (* gets the mappings which are living at the end of this node *)
-     let get_final_env =
-       Graph_util.memoize
-         ~f:(fun node get_final_env ->
-           let initial_env = get_initial_env get_final_env node in
-           match Statement.get_assignment (Node.stmt node) with
-           | Some { from; to_ } ->
-               `Resolved (Environment.update initial_env ~from ~to_).valid
-           | None -> `Resolved initial_env)
-         ~on_cycle:(fun _ -> `Cycle Environment.empty)
-     in
-     {
-       get_initial_env = get_initial_env get_final_env;
-       get_final_env =
-         (fun node ->
-           get_final_env node |> function
-           | `Resolved x -> x
-           | `Cycle _ -> Environment.empty);
-     } *)
   let create () =
     (* gets the mappings which are living at the end of this node *)
     let get_final_env get_initial_env node =
       let initial_env, is_cycle = get_initial_env node in
-      match Statement.get_assignment (Node.stmt node) with
-      | Some { from; to_ } ->
+      Substitute_util.substitute_all (Node.stmt node) initial_env
+      |> fun (stmt, _) ->
+      Statement.get_assignment stmt |> function
+      | Some Statement.{ from; to_ } ->
           (Environment.(update initial_env ~from ~to_).valid, is_cycle)
       | None -> (initial_env, is_cycle)
     in

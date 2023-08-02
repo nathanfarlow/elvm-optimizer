@@ -68,19 +68,19 @@ let%expect_test "simple fallthrough sequence" =
     {|
        __L0: ()
        __L1: (((Register A) (Var (Register B))))
-       __L2: (((Register A) (Var (Register B))) ((Memory (Var (Register A))) (Const 0)))
-       __L3: (((Register A) (Var (Register B))) ((Memory (Var (Register A))) (Const 0)))
-       __L4: (((Register A) (Var (Register C))))
-       __L5: (((Register A) (Var (Register C)))) |}];
+       __L2: (((Register A) (Var (Register B))) ((Memory (Var (Register B))) (Const 0)))
+       __L3: (((Register A) (Var (Register B))) ((Memory (Var (Register B))) (Const 0)))
+       __L4: (((Register B) (Var (Register C))))
+       __L5: (((Register B) (Var (Register C)))) |}];
   print_final_env graph simulator;
   [%expect
     {|
        __L0: (((Register A) (Var (Register B))))
-       __L1: (((Register A) (Var (Register B))) ((Memory (Var (Register A))) (Const 0)))
-       __L2: (((Register A) (Var (Register B))) ((Memory (Var (Register A))) (Const 0)))
-       __L3: (((Register A) (Var (Register C))))
-       __L4: (((Register A) (Var (Register C))))
-       __L5: (((Register A) (Var (Register C)))) |}]
+       __L1: (((Register A) (Var (Register B))) ((Memory (Var (Register B))) (Const 0)))
+       __L2: (((Register A) (Var (Register B))) ((Memory (Var (Register B))) (Const 0)))
+       __L3: (((Register B) (Var (Register C))))
+       __L4: (((Register B) (Var (Register C))))
+       __L5: (((Register B) (Var (Register C)))) |}]
 
 let%expect_test "graph with two parents" =
   let _graph, graph_as_str = Ast_test_util.graph_with_two_parents () in
@@ -274,14 +274,14 @@ let%expect_test "graph with conditional self loop" =
   [%expect
     {|
      a_init: ()
-     exit: (((Register A) (Sub (Var (Register A)) (Const 1)))
+     exit: (((Register A) (Sub (Const 10) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1))))
-     jmp: (((Register A) (Sub (Var (Register A)) (Const 1)))
+     jmp: (((Register A) (Sub (Const 10) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1))))
      putc_a: ()
-     putc_b: (((Register A) (Sub (Var (Register A)) (Const 1)))
+     putc_b: (((Register A) (Sub (Const 10) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1))))
      sub_a: ()
@@ -292,14 +292,14 @@ let%expect_test "graph with conditional self loop" =
   [%expect
     {|
      a_init: (((Register A) (Const 10)))
-     exit: (((Register A) (Sub (Var (Register A)) (Const 1)))
+     exit: (((Register A) (Sub (Const 10) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1))))
-     jmp: (((Register A) (Sub (Var (Register A)) (Const 1)))
+     jmp: (((Register A) (Sub (Const 10) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1))))
      putc_a: ()
-     putc_b: (((Register A) (Sub (Var (Register A)) (Const 1)))
+     putc_b: (((Register A) (Sub (Const 10) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1))))
      sub_a: (((Register A) (Sub (Var (Register A)) (Const 1))))
