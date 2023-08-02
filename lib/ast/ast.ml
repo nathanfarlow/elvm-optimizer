@@ -11,8 +11,14 @@ module rec Expression : sig
 
   include Environment_rhs_intf.S with type t := t and type lhs := Variable.t
 
+  include
+    Liveness_analyzer_rhs_intf.S with type t := t and type lhs := Variable.t
+
   val substitute : t -> from:t -> to_:t -> t * bool
 end = struct
+  module Lhs = Variable
+  module Lhs_set = Set.Make (Lhs)
+
   type t =
     | Const of int
     | Label of string
@@ -56,6 +62,20 @@ end = struct
     | Add ts -> List.exists ts ~f:(fun t -> contains t var)
     | Sub (t1, t2) -> contains t1 var || contains t2 var
     | If { left; right; _ } -> contains left var || contains right var
+
+  let rec get_all_lhs_dependencies t =
+    match t with
+    | Const _ | Label _ | Getc -> Lhs_set.empty
+    | Var v -> Lhs_set.singleton v
+    | Add ts -> List.map ts ~f:get_all_lhs_dependencies |> Lhs_set.union_list
+    | Sub (t1, t2) ->
+        Lhs_set.union
+          (get_all_lhs_dependencies t1)
+          (get_all_lhs_dependencies t2)
+    | If { left; right; _ } ->
+        Lhs_set.union
+          (get_all_lhs_dependencies left)
+          (get_all_lhs_dependencies right)
 end
 
 and Comparison : sig
@@ -84,6 +104,7 @@ and Variable : sig
   [@@deriving sexp, equal, compare, hash]
 
   include Environment_lhs_intf.S with type t := t
+  include Liveness_analyzer_lhs_intf.S with type t := t
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end = struct
