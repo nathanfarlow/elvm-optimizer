@@ -25,7 +25,7 @@ let print_over_nodes graph ~f ~to_str =
   Graph.nodes graph |> Hashtbl.to_alist
   |> List.sort ~compare:(fun (a, _) (b, _) -> String.compare a b)
   |> List.iter ~f:(fun (label, node) ->
-         printf "%s: %s" label (f node |> to_str))
+         printf "%s: %s\n" label (f node |> to_str))
 
 let graph_simple_fallthrough_sequence =
   let diagram =
