@@ -1,5 +1,5 @@
 module Make
-    (Statement : Simulator_statement_intf.S)
+    (Statement : Assignable_statement_intf.S)
     (Lhs : Environment_lhs_intf.S with type t = Statement.lhs)
     (Rhs : Environment_rhs_intf.S
              with type t = Statement.rhs
