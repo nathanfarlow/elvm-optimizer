@@ -11,14 +11,9 @@ module rec Expression : sig
     | If of Condition.t
   [@@deriving sexp_of, equal, compare, hash]
 
-  include Environment_rhs_intf.S with type t := t and type lhs := Variable.t
-  include Liveness_analyzer_rhs_intf.S with type t := t and type lhs := Variable.t
-
   val substitute : t -> from:t -> to_:t -> t * bool
+  val contains : t -> Variable.t -> bool
 end = struct
-  module Lhs = Variable
-  module Lhs_set = Set.Make (Lhs)
-
   type t =
     | Const of int
     | Label of string
@@ -66,16 +61,17 @@ end = struct
     | If { left; right; _ } -> contains left var || contains right var
   ;;
 
-  let rec get_all_lhs_dependencies t =
-    match t with
-    | Const _ | Label _ | Getc -> Lhs_set.empty
-    | Var v -> Lhs_set.singleton v
-    | Add ts -> List.map ts ~f:get_all_lhs_dependencies |> Lhs_set.union_list
-    | Sub (t1, t2) ->
-      Set.union (get_all_lhs_dependencies t1) (get_all_lhs_dependencies t2)
-    | If { left; right; _ } ->
-      Set.union (get_all_lhs_dependencies left) (get_all_lhs_dependencies right)
-  ;;
+  (* let rec get_all_lhs_dependencies t = *)
+  (*   match t with *)
+  (*   | Const _ | Label _ | Getc -> Set.empty (module Variable) *)
+  (*   | Var v -> Set.singleton (module Variable) v *)
+  (*   | Add ts -> *)
+  (*     List.map ts ~f:get_all_lhs_dependencies |> Set.union_list (module Variable) *)
+  (*   | Sub (t1, t2) -> *)
+  (*     Set.union (get_all_lhs_dependencies t1) (get_all_lhs_dependencies t2) *)
+  (*   | If { left; right; _ } -> *)
+  (*     Set.union (get_all_lhs_dependencies left) (get_all_lhs_dependencies right) *)
+  (* ;; *)
 end
 
 and Comparison : sig
@@ -124,10 +120,10 @@ and Variable : sig
     | Memory of Expression.t
   [@@deriving sexp_of, equal, compare, hash]
 
-  include Environment_lhs_intf.S with type t := t
-  include Liveness_analyzer_lhs_intf.S with type t := t
-
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
+  val contains : t -> t -> bool
+
+  include Comparator.S with type t := t
 end = struct
   type t =
     | Register of Eir.Register.t
@@ -151,6 +147,12 @@ end = struct
       | Register _ -> false
       | Memory expr -> Expression.contains expr var)
   ;;
+
+  include Comparator.Make (struct
+      type nonrec t = t [@@deriving sexp_of]
+
+      let compare = compare
+    end)
 end
 
 module Statement = struct
@@ -178,28 +180,21 @@ module Statement = struct
     | Nop
   [@@deriving sexp_of, equal, compare, hash]
 
-  type lhs = Variable.t
-  type rhs = Expression.t
-
   type assignment =
     { from : Variable.t
     ; to_ : Expression.t
     }
   [@@deriving sexp_of]
 
-  let is_nop = equal Nop
-  let nop = Nop
+  (* let branch_type = function *)
+  (*   | Exit -> None *)
+  (*   | Assign _ | Putc _ | Nop -> Some Statement_intf.Branch_type.Fallthrough *)
+  (*   | Jump { cond = None; _ } -> Some Unconditional_jump *)
+  (*   | Jump { cond = Some _; _ } -> Some Conditional_jump *)
+  (* ;; *)
 
-  let branch_type = function
-    | Exit -> None
-    | Assign _ | Putc _ | Nop -> Some Statement_intf.Branch_type.Fallthrough
-    | Jump { cond = None; _ } -> Some Unconditional_jump
-    | Jump { cond = Some _; _ } -> Some Conditional_jump
-  ;;
-
-  let from_assignment { from; to_ } = Assign { dst = from; src = to_ }
-
-  let substitute ~from ~to_ = function
+  let substitute t ~from ~to_ =
+    match t with
     | Assign { dst; src } ->
       let dst, dst_changed = Variable.substitute dst ~from ~to_ in
       let src, src_changed = Expression.substitute src ~from ~to_ in
@@ -217,20 +212,5 @@ module Statement = struct
       Jump { target; cond }, target_changed || cond_changed
     | Exit -> Exit, false
     | Nop -> Nop, false
-  ;;
-
-  let substitute_lhs_to_rhs t ~from ~to_ =
-    let from = Expression.Var from in
-    substitute t ~from ~to_
-  ;;
-
-  let substitute_rhs_to_lhs t ~from ~to_ =
-    let to_ = Expression.Var to_ in
-    substitute t ~from ~to_
-  ;;
-
-  let get_assignment = function
-    | Assign { dst; src } -> Some { from = dst; to_ = src }
-    | _ -> None
   ;;
 end

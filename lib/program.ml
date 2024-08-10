@@ -29,13 +29,12 @@ module For_tests = struct
       then
         [ "data:"
         ; Sexp.to_string_hum (List.sexp_of_t Data.sexp_of_t t.data)
-          |> String_util.indent_string ~indent:1
+          |> Util.indent_string ~indent:1
         ]
       else [])
      @
      if not @@ Hashtbl.is_empty (Graph.nodes t.graph)
-     then
-       [ "graph:"; Graph_tests.to_string t.graph |> String_util.indent_string ~indent:1 ]
+     then [ "graph:"; Graph_tests.to_string t.graph |> Util.indent_string ~indent:1 ]
      else [])
     |> String.concat ~sep:"\n"
   ;;

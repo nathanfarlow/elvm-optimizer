@@ -12,6 +12,7 @@ module rec Expression : sig
   [@@deriving sexp_of, equal, compare, hash]
 
   val substitute : t -> from:t -> to_:t -> t * bool
+  val contains : t -> Variable.t -> bool
 end
 
 and Comparison : sig
@@ -41,6 +42,9 @@ and Variable : sig
   [@@deriving sexp_of, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
+  val contains : t -> t -> bool
+
+  include Comparator.S with type t := t
 end
 
 module Statement : sig
@@ -67,4 +71,6 @@ module Statement : sig
     | Exit
     | Nop
   [@@deriving sexp_of, equal, compare, hash]
+
+  val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end

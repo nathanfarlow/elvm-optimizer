@@ -139,15 +139,18 @@ end
 
 include Node
 
-module For_tests (Element : Sexpable.S) = struct
-  let ref_to_string (ref : Element.t Reference.t) =
+module For_tests (E : sig
+    type t [@@deriving sexp_of]
+  end) =
+struct
+  let ref_to_string (ref : E.t Reference.t) =
     sprintf
       "%s from %s"
       (Sexp.to_string_hum ([%sexp_of: Reference.type_] ref.type_))
       (Node.label ref.from)
   ;;
 
-  let branch_to_string (branch : Element.t Branch.t) =
+  let branch_to_string (branch : E.t Branch.t) =
     match branch with
     | Unconditional_jump node -> "unconditional jump to " ^ Node.label node
     | Conditional_jump { true_; false_ } ->
@@ -162,19 +165,19 @@ module For_tests (Element : Sexpable.S) = struct
     (sprintf
        "%s: %s"
        (Node.label node)
-       (Sexp.to_string_hum ([%sexp_of: Element.t] (Node.stmt node)))
+       (Sexp.to_string_hum ([%sexp_of: E.t] (Node.stmt node)))
      ::
      (if not @@ List.is_empty (Node.references node)
-      then [ String_util.indent_string "references:" ~indent:1 ]
+      then [ Util.indent_string "references:" ~indent:1 ]
       else []))
     @ (Node.references node
        |> List.map ~f:ref_to_string
-       |> List.map ~f:(String_util.indent_string ~indent:2))
+       |> List.map ~f:(Util.indent_string ~indent:2))
     @ (if Option.is_some (Node.branch node)
-       then [ String_util.indent_string "branch:" ~indent:1 ]
+       then [ Util.indent_string "branch:" ~indent:1 ]
        else [])
     @ Option.value_map (Node.branch node) ~default:[] ~f:(fun branch ->
-      [ branch_to_string branch |> String_util.indent_string ~indent:2 ])
+      [ branch_to_string branch |> Util.indent_string ~indent:2 ])
     |> String.concat ~sep:"\n"
   ;;
 end

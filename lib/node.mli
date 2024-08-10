@@ -1,4 +1,4 @@
-open Core
+open! Core
 
 module rec Node : sig
   type 'a t
@@ -21,7 +21,7 @@ and Reference : sig
   type type_ =
     | Jump
     | Fallthrough
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
   type 'a t =
     { from : 'a Node.t
@@ -41,6 +41,10 @@ end
 
 include module type of Node with type 'a t = 'a Node.t
 
-module For_tests : functor (Element : Sexpable) -> sig
-  val to_string : Element.t Node.t -> string
+module For_tests : functor
+    (E : sig
+       type t [@@deriving sexp_of]
+     end)
+    -> sig
+  val to_string : E.t Node.t -> string
 end

@@ -1,9 +1,17 @@
 open! Core
+open Ast
 
-module Make
-    (Lhs : Environment_lhs_intf.S)
-    (Rhs : Environment_rhs_intf.S with type lhs := Lhs.t) : sig
-  type t [@@deriving sexp]
+type t [@@deriving sexp_of]
 
-  include Environment_intf.S with type t := t and type lhs := Lhs.t and type rhs := Rhs.t
-end
+type update_result =
+  { valid : t
+  ; invalid : t
+  }
+
+val empty : t
+val update : t -> from:Variable.t -> to_:Expression.t -> update_result
+val intersection : t -> t -> t
+val union : t -> t -> t
+val diff : t -> t -> t
+val get : t -> Variable.t -> Expression.t option
+val to_alist : t -> (Variable.t * Expression.t) list

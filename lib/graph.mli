@@ -1,4 +1,4 @@
-open Core
+open! Core
 
 type 'a t
 
@@ -9,6 +9,16 @@ val fresh_label : 'a t -> string
 val register_node : 'a t -> 'a Node.t -> unit
 val unregister_node : 'a t -> string -> unit
 
-module For_tests : functor (Element : Sexpable) -> sig
-  val to_string : Element.t t -> string
+val memo
+  :  f:('a Node.t -> ('a Node.t -> 'b) -> 'b)
+  -> on_cycle:('a Node.t -> 'b)
+  -> 'a Node.t
+  -> 'b
+
+module For_tests : functor
+    (E : sig
+       type t [@@deriving sexp_of]
+     end)
+    -> sig
+  val to_string : E.t t -> string
 end
