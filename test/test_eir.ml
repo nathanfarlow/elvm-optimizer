@@ -17,7 +17,7 @@ let print_labels eir =
   let labels =
     Eir.labels eir
     |> Hashtbl.to_alist
-    |> List.sort ~compare:(fun (a, _) (b, _) -> String.compare a b)
+    |> List.sort ~compare:(Comparable.lift String.compare ~f:fst)
   in
   print_s [%sexp (labels : (string * Eir.Address.t) list)]
 ;;
