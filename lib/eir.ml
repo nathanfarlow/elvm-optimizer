@@ -8,7 +8,7 @@ module Register = struct
     | D
     | SP
     | BP
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   let maybe_parse = function
     | "A" -> Some A
@@ -55,7 +55,7 @@ module Instruction = struct
       | Int of int
       | Label of string
       | Register of Register.t
-    [@@deriving sexp_of, equal, hash]
+    [@@deriving sexp, equal, hash]
 
     let parse_exn s ~labels =
       match maybe_parse_number s with
@@ -73,7 +73,7 @@ module Instruction = struct
       { src : Imm_or_reg.t
       ; dst : Register.t
       }
-    [@@deriving sexp_of, equal, hash]
+    [@@deriving sexp, equal, hash]
 
     let parse_exn ~src ~dst ~labels =
       let src = Imm_or_reg.parse_exn src ~labels in
@@ -90,7 +90,7 @@ module Instruction = struct
       | Le
       | Gt
       | Ge
-    [@@deriving sexp_of, equal, hash]
+    [@@deriving sexp, equal, hash]
   end
 
   module Condition = struct
@@ -98,7 +98,7 @@ module Instruction = struct
       { cmp : Comparison.t
       ; args : Operands.t
       }
-    [@@deriving sexp_of, equal, hash]
+    [@@deriving sexp, equal, hash]
 
     let parse_exn cmp ~src ~dst ~labels =
       let args = Operands.parse_exn ~src ~dst ~labels in
@@ -124,7 +124,7 @@ module Instruction = struct
         }
     | Set of Condition.t
     | Dump
-  [@@deriving sexp_of, equal, hash]
+  [@@deriving sexp, equal, hash]
 
   let maybe_parse_exn line ~labels =
     let line = String.filter line ~f:(fun c -> not @@ Char.equal c ',') in
@@ -172,7 +172,7 @@ module Segment = struct
   type t =
     | Data
     | Text
-  [@@deriving sexp_of, equal, hash]
+  [@@deriving sexp, equal, hash]
 end
 
 module Address = struct
@@ -180,14 +180,14 @@ module Address = struct
     { segment : Segment.t
     ; offset : int
     }
-  [@@deriving sexp_of, equal, hash]
+  [@@deriving sexp, equal, hash]
 end
 
 module Data = struct
   type t =
     | Const of int
     | Label of string
-  [@@deriving sexp_of, equal, hash]
+  [@@deriving sexp, equal, hash]
 end
 
 type t =

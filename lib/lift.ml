@@ -1,10 +1,10 @@
 open Core
+open Ast
 module Insn = Eir.Instruction
 
 let lift_reg r = Ast.Variable.Register r
 
-let lift_imm_or_reg (imm_or_reg : Insn.Imm_or_reg.t) : Ast.Expression.t =
-  match imm_or_reg with
+let lift_imm_or_reg : Insn.Imm_or_reg.t -> Expression.t = function
   | Int x -> Const x
   | Register x -> Var (lift_reg x)
   | Label x -> Label x
@@ -30,9 +30,7 @@ let lift_insn (insn : Insn.t) : Ast.Statement.t =
   | Add { dst; src } ->
     let src = lift_imm_or_reg src in
     let dst = lift_reg dst in
-    (* sort to maintain canonical order *)
-    let args = Ast.Expression.(List.sort [ Var dst; src ] ~compare) in
-    Assign { dst; src = Add args }
+    Assign { dst; src = Add [ Var dst; src ] }
   | Sub { dst; src } ->
     let src = lift_imm_or_reg src in
     let dst = lift_reg dst in
@@ -57,7 +55,7 @@ let lift_insn (insn : Insn.t) : Ast.Statement.t =
   | Dump -> Nop
 ;;
 
-(* f is a mapping from label -> new label *)
+(** f is a mapping from label -> new label *)
 let update_labels eir ~f =
   let f = Memo.general f in
   let labels = Hashtbl.create (module String) in
@@ -104,7 +102,7 @@ let sorted_alist map ~compare =
 let fresh_label prefix eir =
   let i = ref 0 in
   let rec loop () =
-    let label = sprintf "%s%d" prefix !i in
+    let label = [%string "%{prefix}%{!i#Int}"] in
     incr i;
     if Hashtbl.mem (Eir.labels eir) label then loop () else label
   in
@@ -160,10 +158,7 @@ let make_statement_edges eir pc_to_label =
     let label = Hashtbl.find_exn pc_to_label pc in
     (match !fallthrough_label with
      | Some prev_label ->
-       Hashtbl.add_multi
-         out_edges
-         ~key:prev_label
-         ~data:(label, Node.Reference.Fallthrough)
+       Hashtbl.add_multi out_edges ~key:prev_label ~data:(label, `Fallthrough)
      | None -> ());
     Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
     fallthrough_label
@@ -171,7 +166,7 @@ let make_statement_edges eir pc_to_label =
        | Jump { target; cond } ->
          (match target with
           | Label target_label ->
-            Hashtbl.add_multi out_edges ~key:label ~data:(target_label, Jump)
+            Hashtbl.add_multi out_edges ~key:label ~data:(target_label, `Jump)
           | Register _ -> ()
           | Int _ -> failwith "jump int is undefined. replace it with jump label.");
          Option.map cond ~f:(fun _ -> label)
@@ -181,35 +176,34 @@ let make_statement_edges eir pc_to_label =
 ;;
 
 let make_graph statements out_edges =
+  let graph = Graph.create () in
   (* create nodes without edges *)
-  let nodes = Hashtbl.create (module String) in
   Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
-    let node = Node.create ~label ~stmt in
-    Hashtbl.add_exn nodes ~key:label ~data:node);
+    Graph.add graph label [ stmt ] |> ignore);
   (* fill in node references with reverse mapping of out_edges *)
   Hashtbl.iteri out_edges ~f:(fun ~key:from ~data:to_ ->
-    let from = Hashtbl.find_exn nodes from in
-    List.iter to_ ~f:(fun (label, type_) ->
-      let node = Hashtbl.find_exn nodes label in
-      Node.add_reference node Node.Reference.{ from; type_ }));
+    let from = Graph.find_exn graph from in
+    List.iter to_ ~f:(fun (label, _) ->
+      let to_ = Graph.find_exn graph label in
+      Graph.Node.add_in to_ from));
   (* fill in branches *)
-  Hashtbl.iteri nodes ~f:(fun ~key:label ~data:node ->
-    Node.set_branch
+  Map.iteri (Graph.nodes graph) ~f:(fun ~key:label ~data:node ->
+    Graph.Node.set_out
       node
       (match Hashtbl.find out_edges label with
        | None -> None
-       | Some [ (label, Node.Reference.Fallthrough) ] ->
-         let target = Hashtbl.find_exn nodes label in
-         Some (Fallthrough target)
-       | Some [ (label, Jump) ] ->
-         let target = Hashtbl.find_exn nodes label in
-         Some (Unconditional_jump target)
-       | Some [ (false_, Fallthrough); (true_, Jump) ] ->
-         let true_ = Hashtbl.find_exn nodes true_ in
-         let false_ = Hashtbl.find_exn nodes false_ in
-         Some (Conditional_jump { true_; false_ })
+       | Some [ (label, `Fallthrough) ] ->
+         let target = Graph.find_exn graph label in
+         Some (Graph.Node.Unconditional target)
+       | Some [ (label, `Jump) ] ->
+         let target = Graph.find_exn graph label in
+         Some (Unconditional target)
+       | Some [ (false_, `Fallthrough); (true_, `Jump) ] ->
+         let true_ = Graph.find_exn graph true_ in
+         let false_ = Graph.find_exn graph false_ in
+         Some (Conditional { true_; false_ })
        | _ -> assert false));
-  Graph.create nodes
+  graph
 ;;
 
 let make_data eir offset_to_label =
@@ -241,5 +235,5 @@ let f eir =
   let statements, out_edges = make_statement_edges eir pc_to_label in
   let graph = make_graph statements out_edges in
   let data = make_data eir data_to_label in
-  Program.create ~graph ~data
+  { Program.graph; data }
 ;;

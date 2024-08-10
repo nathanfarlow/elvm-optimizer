@@ -13,12 +13,8 @@ module Data : sig
   [@@deriving sexp_of, equal, hash]
 end
 
-type t
-
-val create : graph:Ast.Statement.t Graph.t -> data:Data.t list -> t
-val graph : t -> Ast.Statement.t Graph.t
-val data : t -> Data.t list
-
-module For_tests : sig
-  val to_string : t -> string
-end
+type t =
+  { graph : Graph.t
+  ; data : Data.t list
+  }
+[@@deriving sexp_of, fields]

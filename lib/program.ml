@@ -14,28 +14,7 @@ module Data = struct
 end
 
 type t =
-  { graph : Ast.Statement.t Graph.t
+  { graph : Graph.t
   ; data : Data.t list
   }
-[@@deriving fields]
-
-let create ~graph ~data = { graph; data }
-
-module For_tests = struct
-  module Graph_tests = Graph.For_tests (Ast.Statement)
-
-  let to_string t =
-    ((if not @@ List.is_empty t.data
-      then
-        [ "data:"
-        ; Sexp.to_string_hum (List.sexp_of_t Data.sexp_of_t t.data)
-          |> Util.indent_string ~indent:1
-        ]
-      else [])
-     @
-     if not @@ Hashtbl.is_empty (Graph.nodes t.graph)
-     then [ "graph:"; Graph_tests.to_string t.graph |> Util.indent_string ~indent:1 ]
-     else [])
-    |> String.concat ~sep:"\n"
-  ;;
-end
+[@@deriving sexp_of, fields]

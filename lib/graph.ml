@@ -1,69 +1,89 @@
 open Core
+open Ast
 
-type 'a t =
-  { nodes : (string, 'a Node.t) Hashtbl.t
-  ; fresh_label : unit -> string
-  }
+[@@@warning "-69"]
 
-let create nodes =
-  let fresh_label =
-    let counter = ref 0 in
-    fun () ->
-      let label = Printf.sprintf "__L%d" !counter in
-      counter := !counter + 1;
-      label
-  in
-  { nodes; fresh_label }
-;;
+module Node = struct
+  type t =
+    { id : string
+    ; stmts : Statement.t list
+    ; mutable in_ : t list
+    ; mutable out : out option
+    }
+  [@@deriving fields ~getters ~setters]
 
-let nodes t = t.nodes
-let find_blocks t = Hashtbl.filter t.nodes ~f:Node.is_top_level
-let fresh_label t = t.fresh_label ()
-let register_node t node = Hashtbl.add_exn t.nodes ~key:(Node.label node) ~data:node
-let unregister_node t = Hashtbl.remove t.nodes
+  and out =
+    | Unconditional of t
+    | Conditional of
+        { true_ : t
+        ; false_ : t
+        }
 
-module For_tests (E : sig
-    type t [@@deriving sexp_of]
-  end) =
-struct
-  module Node_test = Node.For_tests (E)
+  let equal_id t1 t2 = String.equal t1.id t2.id
 
-  let to_string (t : E.t t) =
-    t.nodes
-    |> Hashtbl.to_alist
-    (* sort for deterministic output *)
-    |> List.sort ~compare:(fun (a, _) (b, _) -> String.compare a b)
-    |> List.map ~f:(fun (_, node) -> Node_test.to_string node)
-    |> String.concat ~sep:"\n"
+  let out_as_list t =
+    match t.out with
+    | None -> []
+    | Some (Unconditional t') -> [ t' ]
+    | Some (Conditional { true_; false_ }) -> [ true_; false_ ]
+  ;;
+
+  (** Does t have this parent in its in edges? *)
+  let has_parent t ~parent = List.mem t.in_ parent ~equal:equal_id
+
+  (** Does t have this child in its out edges? *)
+  let has_child t ~child = List.mem (out_as_list t) child ~equal:equal_id
+
+  let add_in t parent = t.in_ <- parent :: t.in_
+
+  let sexp_of_t t =
+    (* Define a custom type for sexp serialization to avoid infinite loops in
+       cycles *)
+    let module Sexpable = struct
+      type t =
+        { stmts : Statement.t list
+        ; in_ : string list
+        ; out : out option
+        }
+      [@@deriving sexp_of]
+
+      and out =
+        | Unconditional of string
+        | Conditional of
+            { true_ : string
+            ; false_ : string
+            }
+      [@@deriving sexp_of]
+    end
+    in
+    { Sexpable.stmts = t.stmts
+    ; in_ = List.map t.in_ ~f:id
+    ; out =
+        Option.map t.out ~f:(function
+          | Unconditional t -> Sexpable.Unconditional t.id
+          | Conditional { true_; false_ } ->
+            Conditional { true_ = true_.id; false_ = false_.id })
+    }
+    |> [%sexp_of: Sexpable.t]
   ;;
 end
 
-(* todo: fix *)
-let memo ~f ~on_cycle =
-  let memo = Hashtbl.create (module String) in
-  let evaluating = Hash_set.create (module String) in
-  let rec g node =
-    let label = Node.label node in
-    match Hashtbl.find memo label with
-    | Some res -> res
-    | None ->
-      if Hash_set.mem evaluating label
-      then on_cycle node
-      else (
-        Hash_set.add evaluating label;
-        let data = f node g in
-        Hash_set.remove evaluating label;
-        (* don't cache computations if we are still evaluating another node.
-           this ensures consistency across the cached results *)
-        if Hash_set.is_empty evaluating then Hashtbl.set memo ~key:label ~data;
-        data)
-  in
-  g
+type t = { mutable nodes : Node.t Map.M(String).t } [@@deriving sexp_of]
+
+let nodes t = t.nodes
+let create () = { nodes = Map.empty (module String) }
+
+let add t id stmts =
+  let node = { Node.id; stmts; in_ = []; out = None } in
+  t.nodes <- Map.set t.nodes ~key:id ~data:node;
+  node
 ;;
 
-(* let get_all_branch_targets node = *)
-(*   match Node.branch node with *)
-(*   | None -> [] *)
-(*   | Some (Fallthrough target) | Some (Unconditional_jump target) -> [ target ] *)
-(*   | Some (Conditional_jump { true_; false_ }) -> [ true_; false_ ] *)
-(* ;; *)
+let remove t node =
+  t.nodes <- Map.remove t.nodes node.Node.id;
+  assert (not @@ List.exists node.in_ ~f:(Node.has_child ~child:node));
+  assert (not @@ List.exists (Node.out_as_list node) ~f:(Node.has_parent ~parent:node))
+;;
+
+let find t = Map.find t.nodes
+let find_exn t = Map.find_exn t.nodes

@@ -1,24 +1,27 @@
-open! Core
+open Core
+open Ast
 
-type 'a t
+module Node : sig
+  type t [@@deriving sexp_of]
 
-val create : (string, 'a Node.t) Base.Hashtbl.t -> 'a t
-val nodes : 'a t -> (string, 'a Node.t) Base.Hashtbl.t
-val find_blocks : 'a t -> (string, 'a Node.t) Base.Hashtbl.t
-val fresh_label : 'a t -> string
-val register_node : 'a t -> 'a Node.t -> unit
-val unregister_node : 'a t -> string -> unit
+  type out =
+    | Unconditional of t
+    | Conditional of
+        { true_ : t
+        ; false_ : t
+        }
 
-val memo
-  :  f:('a Node.t -> ('a Node.t -> 'b) -> 'b)
-  -> on_cycle:('a Node.t -> 'b)
-  -> 'a Node.t
-  -> 'b
-
-module For_tests : functor
-    (E : sig
-       type t [@@deriving sexp_of]
-     end)
-    -> sig
-  val to_string : E.t t -> string
+  val in_ : t -> t list
+  val add_in : t -> t -> unit
+  val out : t -> out option
+  val set_out : t -> out option -> unit
 end
+
+type t [@@deriving sexp_of]
+
+val create : unit -> t
+val nodes : t -> Node.t Map.M(String).t
+val add : t -> string -> Statement.t list -> Node.t
+val remove : t -> Node.t -> unit
+val find : t -> string -> Node.t option
+val find_exn : t -> string -> Node.t
