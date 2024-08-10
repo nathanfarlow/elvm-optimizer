@@ -14,11 +14,6 @@ let%expect_test "register remains same" =
   [%expect {| (Var (Register A)) |}]
 ;;
 
-let%expect_test "getc remains same" =
-  optimize Getc;
-  [%expect {| Getc |}]
-;;
-
 let%expect_test "memory address is simplified" =
   optimize (Var (Memory (Sub (Const 1, Const 1))));
   [%expect {| (Var (Memory (Const 0))) |}]

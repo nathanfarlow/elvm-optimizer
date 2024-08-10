@@ -137,28 +137,6 @@ let%expect_test "substitute sub entirely" =
   [%expect {| (Const 3) |}]
 ;;
 
-let%expect_test "substitute getc" =
-  let exp = Getc in
-  let from = Getc in
-  let to_ = Const 3 in
-  let exp, changed = substitute exp ~from ~to_ in
-  printf "%b" changed;
-  [%expect {| true |}];
-  print exp;
-  [%expect {| (Const 3) |}]
-;;
-
-let%expect_test "substitute getc not match" =
-  let exp = Getc in
-  let from = Const 1 in
-  let to_ = Const 2 in
-  let exp, changed = substitute exp ~from ~to_ in
-  printf "%b" changed;
-  [%expect {| false |}];
-  print exp;
-  [%expect {| Getc |}]
-;;
-
 let%expect_test "substitute within if lhs" =
   let exp = If { cmp = Eq; left = Const 1; right = Const 2 } in
   let from = Const 1 in

@@ -7,7 +7,6 @@ module rec Expression : sig
     | Var of Variable.t
     | Add of t list
     | Sub of t * t
-    | Getc
     | If of Condition.t
   [@@deriving sexp_of, equal, compare, hash]
 
@@ -20,7 +19,6 @@ end = struct
     | Var of Variable.t
     | Add of t list
     | Sub of t * t
-    | Getc
     | If of Condition.t
   [@@deriving sexp_of, equal, compare, hash]
 
@@ -29,7 +27,7 @@ end = struct
     then to_, true
     else (
       match t with
-      | Const _ | Label _ | Getc -> t, false
+      | Const _ | Label _ -> t, false
       | Var v ->
         let v, changed = Variable.substitute v ~from ~to_ in
         Var v, changed
@@ -54,7 +52,7 @@ end = struct
 
   let rec contains t var =
     match t with
-    | Const _ | Label _ | Getc -> false
+    | Const _ | Label _ -> false
     | Var v -> Variable.equal v var
     | Add ts -> List.exists ts ~f:(fun t -> contains t var)
     | Sub (t1, t2) -> contains t1 var || contains t2 var
@@ -175,6 +173,7 @@ module Statement = struct
   type t =
     | Assign of Assignment.t
     | Putc of Expression.t
+    | Getc of Variable.t
     | Jump of Jump.t
     | Exit
     | Nop
@@ -186,13 +185,6 @@ module Statement = struct
     }
   [@@deriving sexp_of]
 
-  (* let branch_type = function *)
-  (*   | Exit -> None *)
-  (*   | Assign _ | Putc _ | Nop -> Some Statement_intf.Branch_type.Fallthrough *)
-  (*   | Jump { cond = None; _ } -> Some Unconditional_jump *)
-  (*   | Jump { cond = Some _; _ } -> Some Conditional_jump *)
-  (* ;; *)
-
   let substitute t ~from ~to_ =
     match t with
     | Assign { dst; src } ->
@@ -202,6 +194,9 @@ module Statement = struct
     | Putc e ->
       let e, changed = Expression.substitute e ~from ~to_ in
       Putc e, changed
+    | Getc e ->
+      let e, changed = Variable.substitute e ~from ~to_ in
+      Getc e, changed
     | Jump { target; cond } ->
       let target, target_changed = Expression.substitute target ~from ~to_ in
       let cond, cond_changed =

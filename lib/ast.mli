@@ -7,7 +7,6 @@ module rec Expression : sig
     | Var of Variable.t
     | Add of t list
     | Sub of t * t
-    | Getc
     | If of Condition.t
   [@@deriving sexp_of, equal, compare, hash]
 
@@ -67,6 +66,7 @@ module Statement : sig
   type t =
     | Assign of Assignment.t
     | Putc of Expression.t
+    | Getc of Variable.t
     | Jump of Jump.t
     | Exit
     | Nop

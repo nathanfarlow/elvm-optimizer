@@ -19,7 +19,6 @@ end = struct
     | Const _ as e -> e
     | Label _ as e -> e
     | Var (Register _) as e -> e
-    | Getc -> Getc
     | Var (Memory addr) -> Var (Memory (optimize addr))
     | Add xs -> optimize_add xs
     | Sub (a, b) -> optimize_sub a b
@@ -94,6 +93,7 @@ end = struct
     | Statement.Assign { dst; src } ->
       Statement.Assign { dst = optimize_variable dst; src = optimize_expression src }
     | Putc exp -> Putc (optimize_expression exp)
+    | Getc dst -> Getc (optimize_variable dst)
     | Jump { target; cond } ->
       let target = optimize_expression target in
       let cond = Option.map cond ~f:optimize_condition in

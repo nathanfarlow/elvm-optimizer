@@ -46,7 +46,7 @@ let lift_insn (insn : Insn.t) : Ast.Statement.t =
     let dst = lift_imm_or_reg dst in
     Assign { dst = Memory dst; src = Var src }
   | Putc src -> Putc (lift_imm_or_reg src)
-  | Getc dst -> Assign { dst = lift_reg dst; src = Getc }
+  | Getc dst -> Getc (lift_reg dst)
   | Exit -> Exit
   | Jump { target; cond } ->
     let cond = Option.map cond ~f:lift_cond in

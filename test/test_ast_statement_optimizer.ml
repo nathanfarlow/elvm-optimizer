@@ -15,6 +15,11 @@ let%expect_test "optimizes putc arg" =
   [%expect {| (Putc (Const 2)) |}]
 ;;
 
+let%expect_test "optimizes getc arg" =
+  optimize (Getc (Memory ugly_exp));
+  [%expect {| (Getc (Memory (Const 2))) |}]
+;;
+
 let%expect_test "exit is unchanged" =
   optimize Exit;
   [%expect {| Exit |}]
@@ -36,7 +41,8 @@ let%expect_test "optimizes jump condition" =
        { target = ugly_exp
        ; cond = Some { cmp = Eq; left = ugly_exp; right = Var (Register A) }
        });
-  [%expect {|
+  [%expect
+    {|
     (Jump
      ((target (Const 2))
       (cond (((cmp Eq) (left (Const 2)) (right (Var (Register A))))))))
