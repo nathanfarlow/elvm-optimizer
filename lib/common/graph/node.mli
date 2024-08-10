@@ -18,14 +18,24 @@ module rec Node : sig
 end
 
 and Reference : sig
-  type type_ = Jump | Fallthrough [@@deriving sexp]
-  type 'a t = { from : 'a Node.t; type_ : type_ }
+  type type_ =
+    | Jump
+    | Fallthrough
+  [@@deriving sexp]
+
+  type 'a t =
+    { from : 'a Node.t
+    ; type_ : type_
+    }
 end
 
 and Branch : sig
   type 'a t =
     | Unconditional_jump of 'a Node.t
-    | Conditional_jump of { true_ : 'a Node.t; false_ : 'a Node.t }
+    | Conditional_jump of
+        { true_ : 'a Node.t
+        ; false_ : 'a Node.t
+        }
     | Fallthrough of 'a Node.t
 end
 

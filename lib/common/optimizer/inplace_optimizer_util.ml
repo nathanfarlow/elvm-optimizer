@@ -6,3 +6,4 @@ let optimize_until_unchanging optim_func t =
     if just_changed then loop t true else has_changed_before || just_changed
   in
   loop t false
+;;

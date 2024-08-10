@@ -8,6 +8,7 @@ module Delegate = struct
 
   let substitute stmt ~lhs ~rhs =
     Ast_statement.substitute_lhs_to_rhs stmt ~from:lhs ~to_:rhs
+  ;;
 end
 
 module Simulator =
@@ -18,19 +19,15 @@ module Environment = Simulator.Environment
 let to_str env = Environment.sexp_of_t env |> Sexp.to_string_hum
 
 let print_initial_env graph simulator =
-  Ast_test_util.print_over_nodes graph
-    ~f:(Simulator.get_initial_env simulator)
-    ~to_str
+  Ast_test_util.print_over_nodes graph ~f:(Simulator.get_initial_env simulator) ~to_str
+;;
 
 let print_final_env graph simulator =
-  Ast_test_util.print_over_nodes graph
-    ~f:(Simulator.get_final_env simulator)
-    ~to_str
+  Ast_test_util.print_over_nodes graph ~f:(Simulator.get_final_env simulator) ~to_str
+;;
 
 let%expect_test "simple fallthrough sequence" =
-  let graph, graph_as_str =
-    Ast_test_util.graph_with_simple_fallthrough_sequence ()
-  in
+  let graph, graph_as_str = Ast_test_util.graph_with_simple_fallthrough_sequence () in
   print_endline graph_as_str;
   [%expect
     {|
@@ -82,6 +79,7 @@ let%expect_test "simple fallthrough sequence" =
        __L3: (((Register B) (Var (Register C))))
        __L4: (((Register B) (Var (Register C))))
        __L5: (((Register B) (Var (Register C)))) |}]
+;;
 
 let%expect_test "graph with two parents" =
   let _graph, graph_as_str = Ast_test_util.graph_with_two_parents () in
@@ -148,11 +146,10 @@ let%expect_test "graph with two parents" =
        jmp_right: (((Register A) (Const 0)) ((Register B) (Const 1)))
        putc_a: (((Register A) (Const 0)))
        putc_b: (((Register A) (Const 0))) |}]
+;;
 
 let%expect_test "graph with unconditional self loop" =
-  let graph, graph_as_str =
-    Ast_test_util.graph_with_unconditional_self_loop ()
-  in
+  let graph, graph_as_str = Ast_test_util.graph_with_unconditional_self_loop () in
   print_endline graph_as_str;
   [%expect
     {|
@@ -213,6 +210,7 @@ let%expect_test "graph with unconditional self loop" =
     jmp: (((Register A) (Const 0)) ((Register B) (Const 1)))
     putc_a: (((Register A) (Const 0)))
     putc_b: (((Register A) (Const 0))) |}]
+;;
 
 let%expect_test "graph with conditional self loop" =
   let graph, graph_as_str = Ast_test_util.graph_with_conditional_self_loop () in
@@ -309,3 +307,4 @@ let%expect_test "graph with conditional self loop" =
      sub_c: (((Register A) (Sub (Var (Register A)) (Const 1)))
       ((Register B) (Sub (Var (Register B)) (Const 1)))
       ((Register C) (Sub (Var (Register C)) (Const 1)))) |}]
+;;

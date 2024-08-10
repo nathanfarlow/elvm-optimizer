@@ -12,26 +12,35 @@ module rec Expression : sig
   [@@deriving sexp, equal, compare, hash]
 
   include Environment_rhs_intf.S with type t := t and type lhs := Variable.t
-
-  include
-    Liveness_analyzer_rhs_intf.S with type t := t and type lhs := Variable.t
+  include Liveness_analyzer_rhs_intf.S with type t := t and type lhs := Variable.t
 
   val substitute : t -> from:t -> to_:t -> t * bool
 end
 
 and Comparison : sig
-  type t = Eq | Ne | Lt | Le [@@deriving sexp, equal, compare, hash]
+  type t =
+    | Eq
+    | Ne
+    | Lt
+    | Le
+  [@@deriving sexp, equal, compare, hash]
 end
 
 and Condition : sig
-  type t = { cmp : Comparison.t; left : Expression.t; right : Expression.t }
+  type t =
+    { cmp : Comparison.t
+    ; left : Expression.t
+    ; right : Expression.t
+    }
   [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end
 
 and Variable : sig
-  type t = Register of Eir.Register.t | Memory of Expression.t
+  type t =
+    | Register of Eir.Register.t
+    | Memory of Expression.t
   [@@deriving sexp, equal, compare, hash]
 
   include Environment_lhs_intf.S with type t := t

@@ -4,7 +4,11 @@ module type S = sig
   type t [@@deriving sexp]
   type lhs
   type rhs
-  type update_result = { valid : t; invalid : t }
+
+  type update_result =
+    { valid : t
+    ; invalid : t
+    }
 
   val empty : t
   val update : t -> from:lhs -> to_:rhs -> update_result

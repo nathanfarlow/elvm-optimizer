@@ -1,8 +1,7 @@
 open Core
 open Elvm
 
-let print var =
-  Ast.Variable.sexp_of_t var |> Sexp.to_string_hum |> print_endline
+let print var = Ast.Variable.sexp_of_t var |> Sexp.to_string_hum |> print_endline
 
 let%expect_test "substitute register entirely" =
   let var = Ast.Variable.Register A in
@@ -13,6 +12,7 @@ let%expect_test "substitute register entirely" =
   [%expect {| true |}];
   print var;
   [%expect {| (Register B) |}]
+;;
 
 let%expect_test "don't substitute register if not match" =
   let var = Ast.Variable.Register A in
@@ -23,6 +23,7 @@ let%expect_test "don't substitute register if not match" =
   [%expect {| false |}];
   print var;
   [%expect {| (Register A) |}]
+;;
 
 let%expect_test "substitute within memory" =
   let var = Ast.Variable.Memory (Const 0) in
@@ -33,6 +34,7 @@ let%expect_test "substitute within memory" =
   [%expect {| true |}];
   print var;
   [%expect {| (Memory (Const 1)) |}]
+;;
 
 let%expect_test "substitute memory entirely" =
   let var = Ast.Variable.Memory (Const 0) in
@@ -43,6 +45,7 @@ let%expect_test "substitute memory entirely" =
   [%expect {| true |}];
   print var;
   [%expect {| (Register B) |}]
+;;
 
 let%expect_test "contains var when var matches" =
   let var = Ast.Variable.Register A in
@@ -50,6 +53,7 @@ let%expect_test "contains var when var matches" =
   let contains = Ast.Variable.contains var check in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "contains var when var is memory" =
   let var = Ast.Variable.Memory (Const 0) in
@@ -57,6 +61,7 @@ let%expect_test "contains var when var is memory" =
   let contains = Ast.Variable.contains var check in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "contains var when var is in memory" =
   let inner = Ast.Variable.Register A in
@@ -64,3 +69,4 @@ let%expect_test "contains var when var is in memory" =
   let contains = Ast.Variable.contains var inner in
   printf "%b" contains;
   [%expect {| true |}]
+;;

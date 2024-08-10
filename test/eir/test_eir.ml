@@ -6,17 +6,21 @@ let parse = Eir.parse_exn
 let print_insns eir =
   let insns = Eir.insns eir in
   print_s [%sexp (insns : Eir.Instruction.t list)]
+;;
 
 let print_data eir =
   let data = Eir.data eir in
   print_s [%sexp (data : Eir.Data.t list)]
+;;
 
 let print_labels eir =
   let labels =
-    Eir.labels eir |> Hashtbl.to_alist
+    Eir.labels eir
+    |> Hashtbl.to_alist
     |> List.sort ~compare:(fun (a, _) (b, _) -> String.compare a b)
   in
   print_s [%sexp (labels : (string * Eir.Address.t) list)]
+;;
 
 let%expect_test "parses mov instruction" =
   parse {|
@@ -24,6 +28,7 @@ let%expect_test "parses mov instruction" =
   mov A, 1
   |} |> print_insns;
   [%expect {| ((Mov ((src (Int 1)) (dst A)))) |}]
+;;
 
 let%expect_test "parses add instruction" =
   parse {|
@@ -31,6 +36,7 @@ let%expect_test "parses add instruction" =
   add A, 1
   |} |> print_insns;
   [%expect {| ((Add ((src (Int 1)) (dst A)))) |}]
+;;
 
 let%expect_test "parses sub instruction" =
   parse {|
@@ -38,6 +44,7 @@ let%expect_test "parses sub instruction" =
   sub A, 1
   |} |> print_insns;
   [%expect {| ((Sub ((src (Int 1)) (dst A)))) |}]
+;;
 
 let%expect_test "parses load instruction" =
   parse {|
@@ -45,6 +52,7 @@ let%expect_test "parses load instruction" =
   load A, 1
   |} |> print_insns;
   [%expect {| ((Load ((src (Int 1)) (dst A)))) |}]
+;;
 
 let%expect_test "parses store instruction" =
   parse {|
@@ -52,6 +60,7 @@ let%expect_test "parses store instruction" =
   store A, 1
   |} |> print_insns;
   [%expect {| ((Store (src A) (dst (Int 1)))) |}]
+;;
 
 let%expect_test "parses putc instruction" =
   parse {|
@@ -59,6 +68,7 @@ let%expect_test "parses putc instruction" =
   putc A
   |} |> print_insns;
   [%expect {| ((Putc (Register A))) |}]
+;;
 
 let%expect_test "parses getc instruction" =
   parse {|
@@ -66,6 +76,7 @@ let%expect_test "parses getc instruction" =
   getc A
   |} |> print_insns;
   [%expect {| ((Getc A)) |}]
+;;
 
 let%expect_test "parses exit instruction" =
   parse {|
@@ -73,6 +84,7 @@ let%expect_test "parses exit instruction" =
   exit
   |} |> print_insns;
   [%expect {| (Exit) |}]
+;;
 
 let%expect_test "parses unconditional jump instruction" =
   parse {|
@@ -81,6 +93,7 @@ let%expect_test "parses unconditional jump instruction" =
   jmp label
   |} |> print_insns;
   [%expect {| ((Jump (target (Label label)) (cond ()))) |}]
+;;
 
 let%expect_test "parses jeq instruction" =
   parse {|
@@ -92,6 +105,7 @@ let%expect_test "parses jeq instruction" =
     {|
       ((Jump (target (Label label))
         (cond (((cmp Eq) (args ((src (Register B)) (dst A)))))))) |}]
+;;
 
 let%expect_test "parses jne instruction" =
   parse {|
@@ -103,6 +117,7 @@ let%expect_test "parses jne instruction" =
     {|
       ((Jump (target (Label label))
         (cond (((cmp Ne) (args ((src (Register B)) (dst A)))))))) |}]
+;;
 
 let%expect_test "parses jlt instruction" =
   parse {|
@@ -114,6 +129,7 @@ let%expect_test "parses jlt instruction" =
     {|
       ((Jump (target (Label label))
         (cond (((cmp Lt) (args ((src (Register B)) (dst A)))))))) |}]
+;;
 
 let%expect_test "parses jle instruction" =
   parse {|
@@ -125,6 +141,7 @@ let%expect_test "parses jle instruction" =
     {|
       ((Jump (target (Label label))
         (cond (((cmp Le) (args ((src (Register B)) (dst A)))))))) |}]
+;;
 
 let%expect_test "parses jgt instruction" =
   parse {|
@@ -136,6 +153,7 @@ let%expect_test "parses jgt instruction" =
     {|
       ((Jump (target (Label label))
         (cond (((cmp Gt) (args ((src (Register B)) (dst A)))))))) |}]
+;;
 
 let%expect_test "parses jge instruction" =
   parse {|
@@ -147,6 +165,7 @@ let%expect_test "parses jge instruction" =
     {|
       ((Jump (target (Label label))
         (cond (((cmp Ge) (args ((src (Register B)) (dst A)))))))) |}]
+;;
 
 let%expect_test "parses eq instruction" =
   parse {|
@@ -154,6 +173,7 @@ let%expect_test "parses eq instruction" =
   eq A, B
   |} |> print_insns;
   [%expect {| ((Set ((cmp Eq) (args ((src (Register B)) (dst A)))))) |}]
+;;
 
 let%expect_test "parses ne instruction" =
   parse {|
@@ -161,6 +181,7 @@ let%expect_test "parses ne instruction" =
   ne A, B
   |} |> print_insns;
   [%expect {| ((Set ((cmp Ne) (args ((src (Register B)) (dst A)))))) |}]
+;;
 
 let%expect_test "parses lt instruction" =
   parse {|
@@ -168,6 +189,7 @@ let%expect_test "parses lt instruction" =
   lt A, B
   |} |> print_insns;
   [%expect {| ((Set ((cmp Lt) (args ((src (Register B)) (dst A)))))) |}]
+;;
 
 let%expect_test "parses le instruction" =
   parse {|
@@ -175,6 +197,7 @@ let%expect_test "parses le instruction" =
   le A, B
   |} |> print_insns;
   [%expect {| ((Set ((cmp Le) (args ((src (Register B)) (dst A)))))) |}]
+;;
 
 let%expect_test "parses gt instruction" =
   parse {|
@@ -182,6 +205,7 @@ let%expect_test "parses gt instruction" =
   gt A, B
   |} |> print_insns;
   [%expect {| ((Set ((cmp Gt) (args ((src (Register B)) (dst A)))))) |}]
+;;
 
 let%expect_test "parses ge instruction" =
   parse {|
@@ -189,6 +213,7 @@ let%expect_test "parses ge instruction" =
   ge A, B
   |} |> print_insns;
   [%expect {| ((Set ((cmp Ge) (args ((src (Register B)) (dst A)))))) |}]
+;;
 
 let%expect_test "parses dump instruction" =
   parse {|
@@ -196,14 +221,17 @@ let%expect_test "parses dump instruction" =
   dump
   |} |> print_insns;
   [%expect {| (Dump) |}]
+;;
 
 let%expect_test "parses with no instructions" =
   parse ".text" |> print_insns;
   [%expect {| () |}]
+;;
 
 let%expect_test "parses const data declaration" =
   parse ".data\n  .long 5" |> print_data;
   [%expect {| ((Const 5) (Label __reserved_heap_base)) |}]
+;;
 
 let%expect_test "parses label data declaration" =
   parse {|.data
@@ -211,12 +239,14 @@ let%expect_test "parses label data declaration" =
   .long foo
   |} |> print_data;
   [%expect {| ((Label foo) (Label __reserved_heap_base)) |}]
+;;
 
 let%expect_test "parses string data declaration" =
   parse {|.data
   .string "foo"|} |> print_data;
   [%expect
     {| ((Const 102) (Const 111) (Const 111) (Const 0) (Label __reserved_heap_base)) |}]
+;;
 
 let%expect_test "ignores comments" =
   parse {|.text
@@ -225,6 +255,7 @@ let%expect_test "ignores comments" =
   .loc b
   |} |> print_insns;
   [%expect {| () |}]
+;;
 
 let%expect_test "data labels are correct" =
   parse {|
@@ -236,6 +267,7 @@ let%expect_test "data labels are correct" =
     {|
     ((__reserved_heap_base ((segment Data) (offset 2)))
      (_edata ((segment Data) (offset 1))) (foo ((segment Data) (offset 0)))) |}]
+;;
 
 let%expect_test "text labels are correct" =
   parse {|
@@ -247,6 +279,7 @@ let%expect_test "text labels are correct" =
     {|
     ((__reserved_heap_base ((segment Data) (offset 1)))
      (_edata ((segment Data) (offset 0))) (foo ((segment Text) (offset 0)))) |}]
+;;
 
 let%expect_test "parses insane subsection behavior" =
   let eir =
@@ -272,6 +305,7 @@ let%expect_test "parses insane subsection behavior" =
     ((.L3 ((segment Data) (offset 1)))
      (__reserved_heap_base ((segment Data) (offset 12)))
      (_edata ((segment Data) (offset 11))) (foo ((segment Data) (offset 0)))) |}]
+;;
 
 let%expect_test "converts elvm's weird signed 24 bit constants" =
   parse {|
@@ -279,6 +313,7 @@ let%expect_test "converts elvm's weird signed 24 bit constants" =
   .long 16777215
   |} |> print_data;
   [%expect {| ((Const -1) (Label __reserved_heap_base)) |}]
+;;
 
 let%expect_test "unescapes string constants" =
   parse {|
@@ -286,3 +321,4 @@ let%expect_test "unescapes string constants" =
   .string "\n"
   |} |> print_data;
   [%expect {| ((Const 10) (Const 0) (Label __reserved_heap_base)) |}]
+;;

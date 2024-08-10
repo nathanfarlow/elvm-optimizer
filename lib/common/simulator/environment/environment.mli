@@ -5,9 +5,5 @@ module Make
     (Rhs : Environment_rhs_intf.S with type lhs := Lhs.t) : sig
   type t [@@deriving sexp]
 
-  include
-    Environment_intf.S
-      with type t := t
-       and type lhs := Lhs.t
-       and type rhs := Rhs.t
+  include Environment_intf.S with type t := t and type lhs := Lhs.t and type rhs := Rhs.t
 end

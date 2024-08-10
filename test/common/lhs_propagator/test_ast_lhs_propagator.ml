@@ -1,9 +1,6 @@
 open Core
 open Elvm
-
-module Propagator =
-  Lhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
-
+module Propagator = Lhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
 module Graph_tests = Graph.For_tests (Ast_statement)
 
 let propagator = Propagator.create ()
@@ -11,9 +8,7 @@ let propagate = Propagator.optimize propagator
 
 let%expect_test "test simple variable replacement" =
   let graph =
-    [
-      Assign { dst = Register A; src = Const 0 }; Putc (Var (Register A)); Exit;
-    ]
+    [ Assign { dst = Register A; src = Const 0 }; Putc (Var (Register A)); Exit ]
     |> Ast_test_util.fallthrough
   in
   let changed = propagate graph in
@@ -38,14 +33,14 @@ let%expect_test "test simple variable replacement" =
         Fallthrough from __L1
       branch:
         fallthrough to __L2 |}]
+;;
 
 let%expect_test "test updated replacement" =
   let graph =
-    [
-      Assign { dst = Register A; src = Const 0 };
-      Assign { dst = Register A; src = Const 1 };
-      Putc (Var (Register A));
-      Exit;
+    [ Assign { dst = Register A; src = Const 0 }
+    ; Assign { dst = Register A; src = Const 1 }
+    ; Putc (Var (Register A))
+    ; Exit
     ]
     |> Ast_test_util.fallthrough
   in
@@ -76,14 +71,14 @@ let%expect_test "test updated replacement" =
         Fallthrough from __L2
       branch:
         fallthrough to __L3 |}]
+;;
 
 let%expect_test "test variable is invalidated" =
   let graph =
-    [
-      Assign { dst = Register A; src = Var (Register B) };
-      Assign { dst = Register B; src = Const 1 };
-      Putc (Var (Register A));
-      Exit;
+    [ Assign { dst = Register A; src = Var (Register B) }
+    ; Assign { dst = Register B; src = Const 1 }
+    ; Putc (Var (Register A))
+    ; Exit
     ]
     |> Ast_test_util.fallthrough
   in
@@ -114,48 +109,48 @@ let%expect_test "test variable is invalidated" =
         Fallthrough from __L2
       branch:
         fallthrough to __L3 |}]
+;;
 
 let%expect_test "test merge from two parents when matching" =
   (* A = 0; jump putc; A = 0; jump putc; putc A; exit*)
   let first_assignment =
-    Node.create ~label:"assign_1"
+    Node.create
+      ~label:"assign_1"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
   in
   let first_jump =
-    Node.create ~label:"jump_1"
+    Node.create
+      ~label:"jump_1"
       ~stmt:(Ast_statement.Jump { cond = None; target = Label "target" })
   in
   Node.set_branch first_assignment (Some (Fallthrough first_jump));
-  Node.set_references first_jump
-    [ { from = first_assignment; type_ = Fallthrough } ];
+  Node.set_references first_jump [ { from = first_assignment; type_ = Fallthrough } ];
   let second_assignment =
-    Node.create ~label:"assign_2"
+    Node.create
+      ~label:"assign_2"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
   in
   let second_jump =
-    Node.create ~label:"jump_2"
+    Node.create
+      ~label:"jump_2"
       ~stmt:(Ast_statement.Jump { cond = None; target = Label "target" })
   in
   Node.set_branch second_assignment (Some (Fallthrough second_jump));
-  Node.set_references second_jump
-    [ { from = second_assignment; type_ = Fallthrough } ];
+  Node.set_references second_jump [ { from = second_assignment; type_ = Fallthrough } ];
   let target =
     Node.create ~label:"target" ~stmt:(Ast_statement.Putc (Var (Register A)))
   in
   Node.set_branch first_jump (Some (Unconditional_jump target));
   Node.set_branch second_jump (Some (Unconditional_jump target));
-  Node.set_references target
-    [
-      { from = first_jump; type_ = Jump }; { from = second_jump; type_ = Jump };
-    ];
+  Node.set_references
+    target
+    [ { from = first_jump; type_ = Jump }; { from = second_jump; type_ = Jump } ];
   let exit = Node.create ~label:"exit" ~stmt:Ast_statement.Exit in
   Node.set_branch target (Some (Fallthrough exit));
   Node.set_references exit [ { from = target; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter
-    [
-      first_assignment; first_jump; second_assignment; second_jump; target; exit;
-    ]
+    [ first_assignment; first_jump; second_assignment; second_jump; target; exit ]
     ~f:(Graph.register_node graph);
   let changed = propagate graph in
   printf "%b" changed;
@@ -193,48 +188,48 @@ let%expect_test "test merge from two parents when matching" =
         Jump from jump_2
       branch:
         fallthrough to __L0 |}]
+;;
 
 let%expect_test "test merge from two parents when conflicting" =
   (* A = 0; jump putc; A = 1; jump putc; putc A; exit*)
   let first_assignment =
-    Node.create ~label:"assign_1"
+    Node.create
+      ~label:"assign_1"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
   in
   let first_jump =
-    Node.create ~label:"jump_1"
+    Node.create
+      ~label:"jump_1"
       ~stmt:(Ast_statement.Jump { cond = None; target = Label "target" })
   in
   Node.set_branch first_assignment (Some (Fallthrough first_jump));
-  Node.set_references first_jump
-    [ { from = first_assignment; type_ = Fallthrough } ];
+  Node.set_references first_jump [ { from = first_assignment; type_ = Fallthrough } ];
   let second_assignment =
-    Node.create ~label:"assign_2"
+    Node.create
+      ~label:"assign_2"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 1 })
   in
   let second_jump =
-    Node.create ~label:"jump_2"
+    Node.create
+      ~label:"jump_2"
       ~stmt:(Ast_statement.Jump { cond = None; target = Label "target" })
   in
   Node.set_branch second_assignment (Some (Fallthrough second_jump));
-  Node.set_references second_jump
-    [ { from = second_assignment; type_ = Fallthrough } ];
+  Node.set_references second_jump [ { from = second_assignment; type_ = Fallthrough } ];
   let target =
     Node.create ~label:"target" ~stmt:(Ast_statement.Putc (Var (Register A)))
   in
   Node.set_branch first_jump (Some (Unconditional_jump target));
   Node.set_branch second_jump (Some (Unconditional_jump target));
-  Node.set_references target
-    [
-      { from = first_jump; type_ = Jump }; { from = second_jump; type_ = Jump };
-    ];
+  Node.set_references
+    target
+    [ { from = first_jump; type_ = Jump }; { from = second_jump; type_ = Jump } ];
   let exit = Node.create ~label:"exit" ~stmt:Ast_statement.Exit in
   Node.set_branch target (Some (Fallthrough exit));
   Node.set_references exit [ { from = target; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter
-    [
-      first_assignment; first_jump; second_assignment; second_jump; target; exit;
-    ]
+    [ first_assignment; first_jump; second_assignment; second_jump; target; exit ]
     ~f:(Graph.register_node graph);
   let changed = propagate graph in
   printf "%b" changed;
@@ -277,14 +272,14 @@ let%expect_test "test merge from two parents when conflicting" =
         Jump from jump_2
       branch:
         fallthrough to exit |}]
+;;
 
 let%expect_test "test substitutes after putc" =
   let graph =
-    [
-      Assign { dst = Register A; src = Const 0 };
-      Putc (Var (Register A));
-      Putc (Var (Register A));
-      Exit;
+    [ Assign { dst = Register A; src = Const 0 }
+    ; Putc (Var (Register A))
+    ; Putc (Var (Register A))
+    ; Exit
     ]
     |> Ast_test_util.fallthrough
   in
@@ -315,32 +310,31 @@ let%expect_test "test substitutes after putc" =
         Fallthrough from __L2
       branch:
         fallthrough to __L3 |}]
+;;
 
 let%expect_test "test self loop tricky optimization" =
   (* A = 0; putc A; goto putc *)
   let first_assignment =
-    Node.create ~label:"assign_1"
+    Node.create
+      ~label:"assign_1"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
   in
-  let putc =
-    Node.create ~label:"putc" ~stmt:(Ast_statement.Putc (Var (Register A)))
-  in
+  let putc = Node.create ~label:"putc" ~stmt:(Ast_statement.Putc (Var (Register A))) in
   let jump =
-    Node.create ~label:"jump"
+    Node.create
+      ~label:"jump"
       ~stmt:(Ast_statement.Jump { cond = None; target = Label "putc" })
   in
   Node.set_branch first_assignment (Some (Fallthrough putc));
   Node.set_branch putc (Some (Fallthrough jump));
   Node.set_branch jump (Some (Unconditional_jump putc));
-  Node.set_references putc
-    [
-      { from = first_assignment; type_ = Fallthrough };
-      { from = jump; type_ = Jump };
-    ];
+  Node.set_references
+    putc
+    [ { from = first_assignment; type_ = Fallthrough }; { from = jump; type_ = Jump } ];
   Node.set_references jump [ { from = putc; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter [ first_assignment; putc; jump ] ~f:(fun node ->
-      Graph.register_node graph node);
+    Graph.register_node graph node);
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| true |}];
@@ -361,38 +355,38 @@ let%expect_test "test self loop tricky optimization" =
         Jump from jump
       branch:
         fallthrough to jump |}]
+;;
 
 let%expect_test "test self loop with contradicting mappings" =
   (* A = 0; putc A; A = 1; goto putc *)
   let first_assignment =
-    Node.create ~label:"assign_1"
+    Node.create
+      ~label:"assign_1"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
   in
-  let putc =
-    Node.create ~label:"putc" ~stmt:(Ast_statement.Putc (Var (Register A)))
-  in
+  let putc = Node.create ~label:"putc" ~stmt:(Ast_statement.Putc (Var (Register A))) in
   let second_assignment =
-    Node.create ~label:"assign_2"
+    Node.create
+      ~label:"assign_2"
       ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 1 })
   in
   let jump =
-    Node.create ~label:"jump"
+    Node.create
+      ~label:"jump"
       ~stmt:(Ast_statement.Jump { cond = None; target = Label "putc" })
   in
   Node.set_branch first_assignment (Some (Fallthrough putc));
   Node.set_branch putc (Some (Fallthrough second_assignment));
   Node.set_branch second_assignment (Some (Fallthrough jump));
   Node.set_branch jump (Some (Unconditional_jump putc));
-  Node.set_references putc
-    [
-      { from = first_assignment; type_ = Fallthrough };
-      { from = jump; type_ = Jump };
-    ];
+  Node.set_references
+    putc
+    [ { from = first_assignment; type_ = Fallthrough }; { from = jump; type_ = Jump } ];
   Node.set_references second_assignment [ { from = putc; type_ = Fallthrough } ];
   Node.set_references jump [ { from = second_assignment; type_ = Fallthrough } ];
   let graph = Graph.create @@ Hashtbl.create (module String) in
   List.iter [ first_assignment; putc; second_assignment; jump ] ~f:(fun node ->
-      Graph.register_node graph node);
+    Graph.register_node graph node);
   let changed = propagate graph in
   printf "%b" changed;
   [%expect {| false |}];
@@ -423,26 +417,14 @@ let%expect_test "test self loop with contradicting mappings" =
         Jump from jump
       branch:
         fallthrough to assign_2 |}]
+;;
 
 let%expect_test "test repeated addition" =
   let graph =
-    [
-      Assign
-        {
-          dst = Register A;
-          src = Add [ Ast.Expression.Var (Register A); Const 1 ];
-        };
-      Assign
-        {
-          dst = Register A;
-          src = Add [ Ast.Expression.Var (Register A); Const 1 ];
-        };
-      Assign
-        {
-          dst = Register A;
-          src = Add [ Ast.Expression.Var (Register A); Const 1 ];
-        };
-      Exit;
+    [ Assign { dst = Register A; src = Add [ Ast.Expression.Var (Register A); Const 1 ] }
+    ; Assign { dst = Register A; src = Add [ Ast.Expression.Var (Register A); Const 1 ] }
+    ; Assign { dst = Register A; src = Add [ Ast.Expression.Var (Register A); Const 1 ] }
+    ; Exit
     ]
     |> Ast_test_util.fallthrough
   in
@@ -476,3 +458,4 @@ let%expect_test "test repeated addition" =
         Fallthrough from __L2
       branch:
         fallthrough to __L3 |}]
+;;

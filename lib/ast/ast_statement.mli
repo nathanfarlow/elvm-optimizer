@@ -1,12 +1,18 @@
 open! Core
 
 module Assignment : sig
-  type t = { dst : Ast.Variable.t; src : Ast.Expression.t }
+  type t =
+    { dst : Ast.Variable.t
+    ; src : Ast.Expression.t
+    }
   [@@deriving sexp, equal, compare, hash]
 end
 
 module Jump : sig
-  type t = { target : Ast.Expression.t; cond : Ast.Condition.t option }
+  type t =
+    { target : Ast.Expression.t
+    ; cond : Ast.Condition.t option
+    }
   [@@deriving sexp, equal, compare, hash]
 end
 
@@ -22,12 +28,12 @@ include Statement_intf.S with type t := t
 
 include
   Lhs_propagator_statement.S
-    with type t := t
-     and type lhs = Ast.Variable.t
-     and type rhs = Ast.Expression.t
+  with type t := t
+   and type lhs = Ast.Variable.t
+   and type rhs = Ast.Expression.t
 
 include
   Rhs_propagator_statement_intf.S
-    with type t := t
-     and type lhs := Ast.Variable.t
-     and type rhs := Ast.Expression.t
+  with type t := t
+   and type lhs := Ast.Variable.t
+   and type rhs := Ast.Expression.t

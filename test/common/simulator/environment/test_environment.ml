@@ -7,6 +7,7 @@ let print mapping = print_s [%sexp (mapping : Environment.t)]
 let%expect_test "test empty" =
   print Environment.empty;
   [%expect {| () |}]
+;;
 
 let%expect_test "test update from empty" =
   let Environment.{ valid; invalid } =
@@ -16,9 +17,9 @@ let%expect_test "test update from empty" =
   [%expect {| (((Register A) (Const 0))) |}];
   print invalid;
   [%expect {| () |}]
+;;
 
-let%expect_test "test update which invalidates another mapping bc new var is \
-                 old var" =
+let%expect_test "test update which invalidates another mapping bc new var is old var" =
   let Environment.{ valid; _ } =
     Environment.update Environment.empty ~from:(Register A) ~to_:(Const 0)
   in
@@ -29,12 +30,11 @@ let%expect_test "test update which invalidates another mapping bc new var is \
   [%expect {| (((Register A) (Const 1))) |}];
   print invalid;
   [%expect {| (((Register A) (Const 0))) |}]
+;;
 
-let%expect_test "test update which invalidates another mapping bc new var is \
-                 in old exp" =
+let%expect_test "test update which invalidates another mapping bc new var is in old exp" =
   let Environment.{ valid; _ } =
-    Environment.update Environment.empty ~from:(Register A)
-      ~to_:(Var (Register B))
+    Environment.update Environment.empty ~from:(Register A) ~to_:(Var (Register B))
   in
   let Environment.{ valid; invalid } =
     Environment.update valid ~from:(Register B) ~to_:(Const 1)
@@ -43,6 +43,7 @@ let%expect_test "test update which invalidates another mapping bc new var is \
   [%expect {| (((Register B) (Const 1))) |}];
   print invalid;
   [%expect {| (((Register A) (Var (Register B)))) |}]
+;;
 
 let%expect_test "test intersection with empty" =
   let Environment.{ valid = mapping; _ } =
@@ -51,6 +52,7 @@ let%expect_test "test intersection with empty" =
   let mapping = Environment.intersection Environment.empty mapping in
   print mapping;
   [%expect {| () |}]
+;;
 
 let%expect_test "test merge keeps only identical mappings" =
   let Environment.{ valid = first; _ } =
@@ -65,3 +67,4 @@ let%expect_test "test merge keeps only identical mappings" =
   let mapping = Environment.intersection first second in
   print mapping;
   [%expect {| (((Register A) (Const 0))) |}]
+;;

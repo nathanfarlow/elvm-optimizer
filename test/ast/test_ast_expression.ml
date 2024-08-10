@@ -1,8 +1,7 @@
 open Core
 open Elvm
 
-let print exp =
-  Ast.Expression.sexp_of_t exp |> Sexp.to_string_hum |> print_endline
+let print exp = Ast.Expression.sexp_of_t exp |> Sexp.to_string_hum |> print_endline
 
 let%expect_test "substitute const" =
   let exp = Ast.Expression.Const 1 in
@@ -13,6 +12,7 @@ let%expect_test "substitute const" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 2) |}]
+;;
 
 let%expect_test "substitute const not match" =
   let exp = Ast.Expression.Const 1 in
@@ -23,6 +23,7 @@ let%expect_test "substitute const not match" =
   [%expect {| false |}];
   print exp;
   [%expect {| (Const 1) |}]
+;;
 
 let%expect_test "substitute label" =
   let exp = Ast.Expression.Label "a" in
@@ -33,6 +34,7 @@ let%expect_test "substitute label" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 2) |}]
+;;
 
 let%expect_test "substitute label not match" =
   let exp = Ast.Expression.Label "a" in
@@ -43,6 +45,7 @@ let%expect_test "substitute label not match" =
   [%expect {| false |}];
   print exp;
   [%expect {| (Label a) |}]
+;;
 
 let%expect_test "substitute var" =
   let exp = Ast.Expression.Var (Register A) in
@@ -53,6 +56,7 @@ let%expect_test "substitute var" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 2) |}]
+;;
 
 let%expect_test "substitute var not match" =
   let exp = Ast.Expression.Var (Register A) in
@@ -63,6 +67,7 @@ let%expect_test "substitute var not match" =
   [%expect {| false |}];
   print exp;
   [%expect {| (Var (Register A)) |}]
+;;
 
 let%expect_test "substitute within add" =
   let exp = Ast.Expression.Add [ Const 1; Const 2 ] in
@@ -73,6 +78,7 @@ let%expect_test "substitute within add" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Add ((Const 2) (Const 3))) |}]
+;;
 
 let%expect_test "substitute within add not match" =
   let exp = Ast.Expression.Add [ Const 1; Const 2 ] in
@@ -83,6 +89,7 @@ let%expect_test "substitute within add not match" =
   [%expect {| false |}];
   print exp;
   [%expect {| (Add ((Const 1) (Const 2))) |}]
+;;
 
 let%expect_test "substitute add entirely" =
   let exp = Ast.Expression.Add [ Const 1; Const 2 ] in
@@ -93,6 +100,7 @@ let%expect_test "substitute add entirely" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 3) |}]
+;;
 
 let%expect_test "substitute within sub" =
   let exp = Ast.Expression.Sub (Const 1, Const 2) in
@@ -103,6 +111,7 @@ let%expect_test "substitute within sub" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Sub (Const 3) (Const 2)) |}]
+;;
 
 let%expect_test "substitute within sub not match" =
   let exp = Ast.Expression.Sub (Const 1, Const 2) in
@@ -113,6 +122,7 @@ let%expect_test "substitute within sub not match" =
   [%expect {| false |}];
   print exp;
   [%expect {| (Sub (Const 1) (Const 2)) |}]
+;;
 
 let%expect_test "substitute sub entirely" =
   let exp = Ast.Expression.Sub (Const 1, Const 2) in
@@ -123,6 +133,7 @@ let%expect_test "substitute sub entirely" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 3) |}]
+;;
 
 let%expect_test "substitute getc" =
   let exp = Ast.Expression.Getc in
@@ -133,6 +144,7 @@ let%expect_test "substitute getc" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 3) |}]
+;;
 
 let%expect_test "substitute getc not match" =
   let exp = Ast.Expression.Getc in
@@ -143,6 +155,7 @@ let%expect_test "substitute getc not match" =
   [%expect {| false |}];
   print exp;
   [%expect {| Getc |}]
+;;
 
 let%expect_test "substitute within if lhs" =
   let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
@@ -153,6 +166,7 @@ let%expect_test "substitute within if lhs" =
   [%expect {| true |}];
   print exp;
   [%expect {| (If ((cmp Eq) (left (Const 3)) (right (Const 2)))) |}]
+;;
 
 let%expect_test "substitute within if rhs" =
   let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
@@ -163,6 +177,7 @@ let%expect_test "substitute within if rhs" =
   [%expect {| true |}];
   print exp;
   [%expect {| (If ((cmp Eq) (left (Const 1)) (right (Const 3)))) |}]
+;;
 
 let%expect_test "substitute if entirely" =
   let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
@@ -173,6 +188,7 @@ let%expect_test "substitute if entirely" =
   [%expect {| true |}];
   print exp;
   [%expect {| (Const 3) |}]
+;;
 
 let%expect_test "contains var in var expression" =
   let var = Ast.Variable.Register A in
@@ -180,6 +196,7 @@ let%expect_test "contains var in var expression" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "does not contain var in var expression" =
   let var = Ast.Variable.Register A in
@@ -187,6 +204,7 @@ let%expect_test "does not contain var in var expression" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
+;;
 
 let%expect_test "contains var in add expression" =
   let var = Ast.Variable.Register A in
@@ -194,6 +212,7 @@ let%expect_test "contains var in add expression" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "does not contain var in add expression" =
   let var = Ast.Variable.Register A in
@@ -201,6 +220,7 @@ let%expect_test "does not contain var in add expression" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
+;;
 
 let%expect_test "contains var in sub lhs" =
   let var = Ast.Variable.Register A in
@@ -208,6 +228,7 @@ let%expect_test "contains var in sub lhs" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "contains var in sub rhs" =
   let var = Ast.Variable.Register A in
@@ -215,6 +236,7 @@ let%expect_test "contains var in sub rhs" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "contains var in sub neither" =
   let var = Ast.Variable.Register A in
@@ -222,6 +244,7 @@ let%expect_test "contains var in sub neither" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
+;;
 
 let%expect_test "contains var in if lhs" =
   let var = Ast.Variable.Register A in
@@ -229,6 +252,7 @@ let%expect_test "contains var in if lhs" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "contains var in if rhs" =
   let var = Ast.Variable.Register A in
@@ -236,6 +260,7 @@ let%expect_test "contains var in if rhs" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
+;;
 
 let%expect_test "contains var in if neither" =
   let var = Ast.Variable.Register A in
@@ -243,3 +268,4 @@ let%expect_test "contains var in if neither" =
   let contains = Ast.Expression.contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
+;;

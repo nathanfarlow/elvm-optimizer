@@ -1,9 +1,6 @@
 open Core
 open Elvm
-
-module Eliminator =
-  Rhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
-
+module Eliminator = Rhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
 module Graph_tests = Graph.For_tests (Ast_statement)
 
 let eliminator = Eliminator.create ()
@@ -36,14 +33,14 @@ let%expect_test "simple expression is eliminated" =
         Fallthrough from __L1
       branch:
         fallthrough to __L2 |}]
+;;
 
 let%expect_test "expression is not eliminated when invalidated" =
   let graph =
-    [
-      Assign { dst = Register A; src = Const 0 };
-      Assign { dst = Register A; src = Var (Register B) };
-      Putc (Const 0);
-      Exit;
+    [ Assign { dst = Register A; src = Const 0 }
+    ; Assign { dst = Register A; src = Var (Register B) }
+    ; Putc (Const 0)
+    ; Exit
     ]
     |> Ast_test_util.fallthrough
   in
@@ -74,3 +71,4 @@ let%expect_test "expression is not eliminated when invalidated" =
         Fallthrough from __L2
       branch:
         fallthrough to __L3 |}]
+;;
