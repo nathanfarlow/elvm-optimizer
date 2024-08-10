@@ -1,130 +1,109 @@
 open Core
 open Ast
 
-let optimize_until_stable optimize e =
-  let rec loop e has_changed =
-    match optimize e with
-    | e', true -> loop e' true
-    | _, false -> e, has_changed
-  in
-  loop e false
+let rec optimize_until_stable ~opt ~equal e =
+  let e' = opt e in
+  match equal e e' with
+  | false -> optimize_until_stable ~opt ~equal e'
+  | true -> e
 ;;
 
-module Expression = struct
-  let rec optimize e = optimize_until_stable optimize' e
+module Expression : sig
+  val optimize : Expression.t -> Expression.t
+end = struct
+  let rec optimize e = optimize_until_stable ~opt:optimize' ~equal:Expression.equal e
 
-  and optimize' (e : Expression.t) =
-    match e with
-    | Const _ as e -> e, false
-    | Label _ as e -> e, false
-    | Var (Register _) as e -> e, false
-    | Var (Memory addr) ->
-      let addr, did_change = optimize addr in
-      Var (Memory addr), did_change
+  and optimize' = function
+    | Const _ as e -> e
+    | Label _ as e -> e
+    | Var (Register _) as e -> e
+    | Getc -> Getc
+    | Var (Memory addr) -> Var (Memory (optimize addr))
     | Add xs -> optimize_add xs
     | Sub (a, b) -> optimize_sub a b
-    | Getc -> Getc, false
     | If { cmp; left; right } -> optimize_if cmp left right
 
   and optimize_add xs =
-    let xs, xs_changed = List.map xs ~f:optimize |> List.unzip in
-    let xs_changed = List.exists xs_changed ~f:Fn.id in
-    (* flatten nested adds *)
-    let xs =
-      List.concat_map xs ~f:(function
-        | Add xs -> xs
-        | x -> [ x ])
-    in
-    match xs with
-    | [] -> Const 0, true
-    | [ x ] -> x, true
-    | _ ->
+    List.map xs ~f:optimize
+    |> (* flatten nested adds *)
+    List.concat_map ~f:(function
+      | Add xs -> xs
+      | x -> [ x ])
+    |> function
+    | [] -> Expression.Const 0
+    | [ x ] -> x
+    | xs ->
       (* constant folding *)
       let consts, non_consts =
-        List.partition_tf
-          ~f:(function
-            | Const _ -> true
-            | _ -> false)
-          xs
+        List.partition_map xs ~f:(function
+          | Const c -> First c
+          | e -> Second e)
       in
-      let const_sum =
-        List.fold consts ~init:0 ~f:(fun acc ->
-            function
-            | Const x -> acc + x
-            | _ -> assert false)
-      in
-      let optimized_terms =
-        (if const_sum = 0 then non_consts else Const const_sum :: non_consts)
-        (* sort to maintain canonical order *)
-        |> List.sort ~compare:Expression.compare
-      in
-      let did_delete_consts = List.length optimized_terms <> List.length xs in
-      Add optimized_terms, xs_changed || did_delete_consts
+      let const_sum = List.sum (module Int) consts ~f:Fn.id in
+      (if const_sum = 0 then non_consts else Const const_sum :: non_consts)
+      (* sort to maintain canonical order *)
+      |> List.sort ~compare:Expression.compare
+      |> Expression.Add
 
   and optimize_sub a b =
-    let a, a_changed = optimize a in
-    let b, b_changed = optimize b in
-    match a, b with
-    | Const a, Const b -> Const (a - b), true
-    | a, Const b when b = 0 -> a, true
-    | a, Const b -> Add [ a; Const (-b) ], true
-    | _ when Expression.equal a b -> Const 0, true
-    | _ -> Sub (a, b), a_changed || b_changed
+    match optimize a, optimize b with
+    | Const a, Const b -> Const (a - b)
+    | a, Const b when b = 0 -> a
+    | a, Const b -> Add [ a; Const (-b) ]
+    | _ when Expression.equal a b -> Const 0
+    | _ -> Sub (a, b)
 
   and optimize_if cmp left right =
-    let left, left_changed = optimize left in
-    let right, right_changed = optimize right in
-    match left, right with
+    match optimize left, optimize right with
     | Const left, Const right ->
-      let cmp_result =
-        match cmp with
-        | Comparison.Eq -> left = right
-        | Ne -> left <> right
-        | Lt -> left < right
-        | Le -> left <= right
-      in
-      Const (Bool.to_int cmp_result), true
-    | _ ->
+      (match cmp with
+       | Comparison.Eq -> left = right
+       | Ne -> left <> right
+       | Lt -> left < right
+       | Le -> left <= right)
+      |> Bool.to_int
+      |> Const
+    | left, right ->
       let equal = Expression.equal left right in
       (match cmp with
-       | Eq when equal -> Const 1, true
-       | Ne when equal -> Const 0, true
-       | Lt when equal -> Const 0, true
-       | Le when equal -> Const 1, true
-       | _ -> If { cmp; left; right }, left_changed || right_changed)
+       | Eq when equal -> Const 1
+       | Ne when equal -> Const 0
+       | Lt when equal -> Const 0
+       | Le when equal -> Const 1
+       | _ -> If { cmp; left; right })
   ;;
 end
 
 let optimize_expression = Expression.optimize
 
-module Statement = struct
+module Statement : sig
+  val optimize : Statement.t -> Statement.t
+end = struct
   let optimize_variable = function
     | Variable.Memory exp ->
-      let exp, changed = optimize_expression exp in
-      Variable.Memory exp, changed
-    | Register _ as e -> e, false
+      let exp = optimize_expression exp in
+      Variable.Memory exp
+    | Register _ as e -> e
   ;;
 
   let optimize' = function
     | Statement.Assign { dst; src } ->
-      let dst, dst_changed = optimize_variable dst in
-      let src, src_changed = optimize_expression src in
-      Statement.Assign { dst; src }, dst_changed || src_changed
-    | Putc exp ->
-      let exp, exp_changed = optimize_expression exp in
-      Putc exp, exp_changed
+      let dst = optimize_variable dst in
+      let src = optimize_expression src in
+      Statement.Assign { dst; src }
+    | Putc exp -> Putc (optimize_expression exp)
     | Jump { target; cond } ->
-      let target, target_changed = optimize_expression target in
+      let target = optimize_expression target in
       let optimized_cond = Option.map cond ~f:(fun c -> optimize_expression (If c)) in
       (match optimized_cond with
-       | Some (Const 1, _) -> Jump { target; cond = None }, true
-       | Some (Const 0, _) -> Nop, true
-       | _ -> Jump { target; cond }, target_changed)
-    | Exit -> Exit, false
-    | Nop -> Nop, false
+       | Some (Const 1) -> Jump { target; cond = None }
+       | Some (Const 0) -> Nop
+       | _ -> Jump { target; cond })
+    | Exit -> Exit
+    | Nop -> Nop
   ;;
 
-  let optimize = optimize_until_stable optimize'
+  let optimize = optimize_until_stable ~opt:optimize' ~equal:Statement.equal
 end
 
 let optimize_statement = Statement.optimize
