@@ -1,3 +1,5 @@
+open! Core
+
 module rec Expression : sig
   type t =
     | Const of int

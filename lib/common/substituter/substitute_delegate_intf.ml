@@ -1,3 +1,5 @@
+open! Core
+
 module type S = sig
   type stmt
   type lhs

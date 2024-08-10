@@ -1,3 +1,5 @@
+open Core
+
 module Make
     (Substitute_delegate : Substitute_delegate_intf.S)
     (Environment : Environment_intf.S

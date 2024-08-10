@@ -1,3 +1,5 @@
+open Core
+
 let memoize ~f ~on_cycle =
   let memo = Hashtbl.create (module String) in
   let evaluating = Hash_set.create (module String) in

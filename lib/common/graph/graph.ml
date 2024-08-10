@@ -1,3 +1,5 @@
+open Core
+
 type 'a t = {
   nodes : (string, 'a Node.t) Hashtbl.t;
   fresh_label : unit -> string;

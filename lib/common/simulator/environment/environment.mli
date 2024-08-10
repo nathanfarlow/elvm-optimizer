@@ -1,3 +1,5 @@
+open! Core
+
 module Make
     (Lhs : Environment_lhs_intf.S)
     (Rhs : Environment_rhs_intf.S with type lhs := Lhs.t) : sig

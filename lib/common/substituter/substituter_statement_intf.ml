@@ -1,3 +1,5 @@
+open! Core
+
 module type S = sig
   include Assignable_statement_intf.S
 

@@ -1,3 +1,5 @@
+open! Core
+
 module Make
     (Statement : Substituter_statement_intf.S)
     (Lhs : Environment_lhs_intf.S with type t = Statement.lhs)

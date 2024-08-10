@@ -1,3 +1,5 @@
+open Core
+
 type t = unit
 
 let rec optimize t = Optimizer_util.optimize_until_unchanging (optimize' t)

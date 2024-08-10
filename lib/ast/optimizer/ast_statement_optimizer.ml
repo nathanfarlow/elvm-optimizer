@@ -1,3 +1,5 @@
+open Core
+
 module Make
     (Expression_optimizer : Optimizer_intf.S
                               with type target := Ast.Expression.t) =

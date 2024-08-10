@@ -1,3 +1,5 @@
+open! Core
+
 module Assignment : sig
   type t = { dst : Ast.Variable.t; src : Ast.Expression.t }
   [@@deriving sexp, equal, compare, hash]

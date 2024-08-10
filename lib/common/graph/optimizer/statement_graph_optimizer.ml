@@ -1,3 +1,5 @@
+open Core
+
 module Make
     (Statement : Statement_intf.S)
     (Optimizer : Optimizer_intf.S with type target := Statement.t) =

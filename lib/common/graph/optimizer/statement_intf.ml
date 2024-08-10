@@ -1,3 +1,5 @@
+open! Core
+
 module Branch_type = struct
   type t = Unconditional_jump | Conditional_jump | Fallthrough
   [@@deriving sexp]

@@ -1,4 +1,4 @@
-open! Core
+open Core
 
 module Register = struct
   type t = A | B | C | D | SP | BP [@@deriving sexp, equal, compare, hash]

@@ -1,3 +1,5 @@
+open! Core
+
 module Make
     (Statement : Lhs_propagator_statement.S)
     (Lhs : Environment_lhs_intf.S with type t = Statement.lhs)

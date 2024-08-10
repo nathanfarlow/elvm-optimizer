@@ -1,3 +1,4 @@
+open Core
 module Insn = Eir.Instruction
 
 let lift_reg r = Ast.Variable.Register r

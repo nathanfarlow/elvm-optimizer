@@ -1,3 +1,5 @@
+open Core
+
 type 'a t
 
 val create : (string, 'a Node.t) Base.Hashtbl.t -> 'a t
