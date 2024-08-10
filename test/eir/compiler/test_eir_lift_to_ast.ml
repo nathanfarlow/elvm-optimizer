@@ -9,7 +9,7 @@ let eir insns labels data =
   Eir.create ~insns ~labels ~data
 ;;
 
-let eir insns labels data = eir insns labels data |> Eir_lift_to_ast.f
+let eir insns labels data = eir insns labels data |> Lift.f
 
 let%expect_test "no insns is empty list" =
   eir [] [] [] |> print;
