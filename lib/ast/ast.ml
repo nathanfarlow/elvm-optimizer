@@ -69,11 +69,9 @@ end = struct
     | Var v -> Lhs_set.singleton v
     | Add ts -> List.map ts ~f:get_all_lhs_dependencies |> Lhs_set.union_list
     | Sub (t1, t2) ->
-        Lhs_set.union
-          (get_all_lhs_dependencies t1)
-          (get_all_lhs_dependencies t2)
+        Set.union (get_all_lhs_dependencies t1) (get_all_lhs_dependencies t2)
     | If { left; right; _ } ->
-        Lhs_set.union
+        Set.union
           (get_all_lhs_dependencies left)
           (get_all_lhs_dependencies right)
 end

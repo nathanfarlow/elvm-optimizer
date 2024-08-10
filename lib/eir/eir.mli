@@ -1,3 +1,5 @@
+open! Core
+
 type t
 
 module Register : sig

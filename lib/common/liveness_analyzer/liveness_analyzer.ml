@@ -15,8 +15,7 @@ struct
       match Statement.get_assignment (Node.stmt node) with
       | None -> living
       | Some { from; to_ } ->
-          Lhs_set.remove living from
-          |> Lhs_set.union (Rhs.get_all_lhs_dependencies to_)
+          Set.remove living from |> Set.union (Rhs.get_all_lhs_dependencies to_)
     in
     let get_living_after =
       Graph_util.memoize

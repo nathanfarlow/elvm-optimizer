@@ -1,3 +1,5 @@
+open! Core
+
 module Register = struct
   type t = A | B | C | D | SP | BP [@@deriving sexp, equal, compare, hash]
 
@@ -28,7 +30,7 @@ let maybe_parse_label line =
   match String.split line ~on:':' with [ label; "" ] -> Some label | _ -> None
 
 let maybe_parse_number s =
-  Caml.int_of_string_opt s
+  Int.of_string_opt s
   (* elvm alternates between using signed and unsigned 24 bit integers
      for some reason? we'll fix that here *)
   |> Option.map ~f:(fun n -> if n > 0x7fffff then n - 0x1000000 else n)
