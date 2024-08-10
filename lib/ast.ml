@@ -37,7 +37,7 @@ end = struct
             let t, t_changed = substitute t ~from ~to_ in
             changed || t_changed, t)
         in
-        (* sort to maintain canonical order *)
+        (* Sort to maintain canonical order *)
         let ts = List.sort ts ~compare in
         Add ts, changed
       | Sub (t1, t2) ->
@@ -58,18 +58,6 @@ end = struct
     | Sub (t1, t2) -> contains t1 var || contains t2 var
     | If { left; right; _ } -> contains left var || contains right var
   ;;
-
-  (* let rec get_all_lhs_dependencies t = *)
-  (*   match t with *)
-  (*   | Const _ | Label _ | Getc -> Set.empty (module Variable) *)
-  (*   | Var v -> Set.singleton (module Variable) v *)
-  (*   | Add ts -> *)
-  (*     List.map ts ~f:get_all_lhs_dependencies |> Set.union_list (module Variable) *)
-  (*   | Sub (t1, t2) -> *)
-  (*     Set.union (get_all_lhs_dependencies t1) (get_all_lhs_dependencies t2) *)
-  (*   | If { left; right; _ } -> *)
-  (*     Set.union (get_all_lhs_dependencies left) (get_all_lhs_dependencies right) *)
-  (* ;; *)
 end
 
 and Comparison : sig
