@@ -48,3 +48,43 @@ and Variable : sig
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end
+
+module Statement : sig
+  module Assignment : sig
+    type t =
+      { dst : Variable.t
+      ; src : Expression.t
+      }
+    [@@deriving sexp, equal, compare, hash]
+  end
+
+  module Jump : sig
+    type t =
+      { target : Expression.t
+      ; cond : Condition.t option
+      }
+    [@@deriving sexp, equal, compare, hash]
+  end
+
+  type t =
+    | Assign of Assignment.t
+    | Putc of Expression.t
+    | Jump of Jump.t
+    | Exit
+    | Nop
+  [@@deriving sexp, equal, compare, hash]
+
+  include Statement_intf.S with type t := t
+
+  include
+    Lhs_propagator_statement.S
+    with type t := t
+     and type lhs = Variable.t
+     and type rhs = Expression.t
+
+  include
+    Rhs_propagator_statement_intf.S
+    with type t := t
+     and type lhs := Variable.t
+     and type rhs := Expression.t
+end

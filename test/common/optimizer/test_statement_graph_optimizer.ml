@@ -1,8 +1,8 @@
 open Core
 open Elvm
 module Statement_opt = Ast_statement_optimizer.Make (Ast_expression_optimizer)
-module Graph_opt = Statement_graph_optimizer.Make (Ast_statement) (Statement_opt)
-module Graph_tests = Graph.For_tests (Ast_statement)
+module Graph_opt = Statement_graph_optimizer.Make (Ast.Statement) (Statement_opt)
+module Graph_tests = Graph.For_tests (Ast.Statement)
 
 let optimizer =
   Ast_expression_optimizer.create () |> Statement_opt.create |> Graph_opt.create
@@ -20,7 +20,7 @@ let%expect_test "optimizes statements" =
   let node =
     Node.create
       ~label:"foo"
-      ~stmt:(Ast_statement.Assign { dst = Register A; src = Add [ Const 1; Const 1 ] })
+      ~stmt:(Ast.Statement.Assign { dst = Register A; src = Add [ Const 1; Const 1 ] })
   in
   let graph = graph_of_nodes [ node ] in
   let changed = optimize graph in
@@ -31,13 +31,13 @@ let%expect_test "optimizes statements" =
 ;;
 
 let%expect_test "corrects optimized branch" =
-  let true_ = Node.create ~label:"true" ~stmt:Ast_statement.Nop in
-  let false_ = Node.create ~label:"false" ~stmt:Ast_statement.Nop in
+  let true_ = Node.create ~label:"true" ~stmt:Ast.Statement.Nop in
+  let false_ = Node.create ~label:"false" ~stmt:Ast.Statement.Nop in
   let conditional_jump =
     Node.create
       ~label:"cond_jump"
       ~stmt:
-        (Ast_statement.Jump
+        (Ast.Statement.Jump
            { target = Label "true"
            ; cond = Some { cmp = Eq; left = Const 1; right = Const 1 }
            })

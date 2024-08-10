@@ -22,7 +22,7 @@ let lift_cond Insn.Condition.{ cmp; args } : Ast.Condition.t =
   | Ge -> { cmp = Lt; left = right; right = left }
 ;;
 
-let lift_insn (insn : Insn.t) : Ast_statement.t =
+let lift_insn (insn : Insn.t) : Ast.Statement.t =
   match insn with
   | Mov { dst; src } ->
     let src = lift_imm_or_reg src in

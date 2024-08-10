@@ -1,7 +1,7 @@
 open Core
 open Elvm
-module Eliminator = Rhs_propagator.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
-module Graph_tests = Graph.For_tests (Ast_statement)
+module Eliminator = Rhs_propagator.Make (Ast.Statement) (Ast.Variable) (Ast.Expression)
+module Graph_tests = Graph.For_tests (Ast.Statement)
 
 let eliminator = Eliminator.create ()
 let eliminate = Eliminator.optimize eliminator

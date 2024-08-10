@@ -1,6 +1,6 @@
 open Core
 open Elvm
-module Analyzer = Liveness_analyzer.Make (Ast_statement) (Ast.Variable) (Ast.Expression)
+module Analyzer = Liveness_analyzer.Make (Ast.Statement) (Ast.Variable) (Ast.Expression)
 module Var_set = Ast.Expression.Lhs_set
 
 let print set = print_s (Var_set.sexp_of_t set)

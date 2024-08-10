@@ -2,17 +2,17 @@ open Core
 open Elvm
 
 module Delegate = struct
-  type stmt = Ast_statement.t
+  type stmt = Ast.Statement.t
   type lhs = Ast.Variable.t
   type rhs = Ast.Expression.t
 
   let substitute stmt ~lhs ~rhs =
-    Ast_statement.substitute_lhs_to_rhs stmt ~from:lhs ~to_:rhs
+    Ast.Statement.substitute_lhs_to_rhs stmt ~from:lhs ~to_:rhs
   ;;
 end
 
 module Simulator =
-  Simulator.Make (Ast_statement) (Ast.Variable) (Ast.Expression) (Delegate)
+  Simulator.Make (Ast.Statement) (Ast.Variable) (Ast.Expression) (Delegate)
 
 module Environment = Simulator.Environment
 

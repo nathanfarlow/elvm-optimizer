@@ -152,3 +152,85 @@ end = struct
       | Memory expr -> Expression.contains expr var)
   ;;
 end
+
+module Statement = struct
+  module Assignment = struct
+    type t =
+      { dst : Variable.t
+      ; src : Expression.t
+      }
+    [@@deriving sexp, equal, compare, hash]
+  end
+
+  module Jump = struct
+    type t =
+      { target : Expression.t
+      ; cond : Condition.t option
+      }
+    [@@deriving sexp, equal, compare, hash]
+  end
+
+  type t =
+    | Assign of Assignment.t
+    | Putc of Expression.t
+    | Jump of Jump.t
+    | Exit
+    | Nop
+  [@@deriving sexp, equal, compare, hash]
+
+  type lhs = Variable.t
+  type rhs = Expression.t
+
+  type assignment =
+    { from : Variable.t
+    ; to_ : Expression.t
+    }
+  [@@deriving sexp]
+
+  let is_nop = equal Nop
+  let nop = Nop
+
+  let branch_type = function
+    | Exit -> None
+    | Assign _ | Putc _ | Nop -> Some Statement_intf.Branch_type.Fallthrough
+    | Jump { cond = None; _ } -> Some Unconditional_jump
+    | Jump { cond = Some _; _ } -> Some Conditional_jump
+  ;;
+
+  let from_assignment { from; to_ } = Assign { dst = from; src = to_ }
+
+  let substitute ~from ~to_ = function
+    | Assign { dst; src } ->
+      let dst, dst_changed = Variable.substitute dst ~from ~to_ in
+      let src, src_changed = Expression.substitute src ~from ~to_ in
+      Assign { dst; src }, dst_changed || src_changed
+    | Putc e ->
+      let e, changed = Expression.substitute e ~from ~to_ in
+      Putc e, changed
+    | Jump { target; cond } ->
+      let target, target_changed = Expression.substitute target ~from ~to_ in
+      let cond, cond_changed =
+        Option.value_map cond ~default:(None, false) ~f:(fun cond ->
+          let cond, changed = Condition.substitute cond ~from ~to_ in
+          Some cond, changed)
+      in
+      Jump { target; cond }, target_changed || cond_changed
+    | Exit -> Exit, false
+    | Nop -> Nop, false
+  ;;
+
+  let substitute_lhs_to_rhs t ~from ~to_ =
+    let from = Expression.Var from in
+    substitute t ~from ~to_
+  ;;
+
+  let substitute_rhs_to_lhs t ~from ~to_ =
+    let to_ = Expression.Var to_ in
+    substitute t ~from ~to_
+  ;;
+
+  let get_assignment = function
+    | Assign { dst; src } -> Some { from = dst; to_ = src }
+    | _ -> None
+  ;;
+end

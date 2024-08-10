@@ -12,10 +12,10 @@ struct
   ;;
 
   let optimize' optimize_exp = function
-    | Ast_statement.Assign { dst; src } ->
+    | Ast.Statement.Assign { dst; src } ->
       let dst, dst_changed = optimize_variable optimize_exp dst in
       let src, src_changed = optimize_exp src in
-      Ast_statement.Assign { dst; src }, dst_changed || src_changed
+      Ast.Statement.Assign { dst; src }, dst_changed || src_changed
     | Putc exp ->
       let exp, exp_changed = optimize_exp exp in
       Putc exp, exp_changed

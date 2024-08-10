@@ -3,7 +3,7 @@ open Elvm
 module Statement_opt = Ast_statement_optimizer.Make (Ast_expression_optimizer)
 
 let optimizer = Statement_opt.create @@ Ast_expression_optimizer.create ()
-let print stmt = print_s [%sexp (stmt : Ast_statement.t)]
+let print stmt = print_s [%sexp (stmt : Ast.Statement.t)]
 let optimize stmt = Statement_opt.optimize optimizer stmt |> fst
 let ugly_exp = Ast.Expression.Add [ Const 1; Const 1 ]
 

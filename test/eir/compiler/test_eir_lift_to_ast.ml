@@ -1,6 +1,6 @@
 open Core
 open Elvm
-module Program_tests = Program.For_tests (Ast_statement)
+module Program_tests = Program.For_tests (Ast.Statement)
 
 let print program = Program_tests.to_string program |> print_endline
 

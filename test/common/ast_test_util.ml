@@ -1,6 +1,6 @@
 open Core
 open Elvm
-module Graph_tests = Graph.For_tests (Ast_statement)
+module Graph_tests = Graph.For_tests (Ast.Statement)
 
 let print_graph graph = Graph_tests.to_string graph |> print_endline
 
@@ -10,7 +10,7 @@ let graph_of_nodes nodes =
   graph
 ;;
 
-let fallthrough (stmts : Ast_statement.t list) =
+let fallthrough (stmts : Ast.Statement.t list) =
   let graph = Graph.create @@ Hashtbl.create (module String) in
   let nodes =
     List.map stmts ~f:(fun stmt -> Node.create ~label:(Graph.fresh_label graph) ~stmt)
@@ -118,40 +118,40 @@ let graph_with_two_parents () =
   let a_left =
     Node.create
       ~label:"a_left"
-      ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
+      ~stmt:(Ast.Statement.Assign { dst = Register A; src = Const 0 })
   in
   let a_right =
     Node.create
       ~label:"a_right"
-      ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
+      ~stmt:(Ast.Statement.Assign { dst = Register A; src = Const 0 })
   in
   let b_left =
     Node.create
       ~label:"b_left"
-      ~stmt:(Ast_statement.Assign { dst = Register B; src = Const 0 })
+      ~stmt:(Ast.Statement.Assign { dst = Register B; src = Const 0 })
   in
   let b_right =
     Node.create
       ~label:"b_right"
-      ~stmt:(Ast_statement.Assign { dst = Register B; src = Const 1 })
+      ~stmt:(Ast.Statement.Assign { dst = Register B; src = Const 1 })
   in
   let jmp_left =
     Node.create
       ~label:"jmp_left"
-      ~stmt:(Ast_statement.Jump { cond = None; target = Label "putc_a" })
+      ~stmt:(Ast.Statement.Jump { cond = None; target = Label "putc_a" })
   in
   let jmp_right =
     Node.create
       ~label:"jmp_right"
-      ~stmt:(Ast_statement.Jump { cond = None; target = Label "putc_a" })
+      ~stmt:(Ast.Statement.Jump { cond = None; target = Label "putc_a" })
   in
   let putc_a =
-    Node.create ~label:"putc_a" ~stmt:(Ast_statement.Putc (Var (Register A)))
+    Node.create ~label:"putc_a" ~stmt:(Ast.Statement.Putc (Var (Register A)))
   in
   let putc_b =
-    Node.create ~label:"putc_b" ~stmt:(Ast_statement.Putc (Var (Register B)))
+    Node.create ~label:"putc_b" ~stmt:(Ast.Statement.Putc (Var (Register B)))
   in
-  let exit = Node.create ~label:"exit" ~stmt:Ast_statement.Exit in
+  let exit = Node.create ~label:"exit" ~stmt:Ast.Statement.Exit in
   Node.set_branch a_left (Some (Fallthrough b_left));
   Node.set_references b_left [ { from = a_left; type_ = Fallthrough } ];
   Node.set_branch a_right (Some (Fallthrough b_right));
@@ -221,28 +221,28 @@ let graph_with_unconditional_self_loop () =
   let a_init =
     Node.create
       ~label:"a_init"
-      ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 0 })
+      ~stmt:(Ast.Statement.Assign { dst = Register A; src = Const 0 })
   in
   let b_init =
     Node.create
       ~label:"b_init"
-      ~stmt:(Ast_statement.Assign { dst = Register B; src = Const 0 })
+      ~stmt:(Ast.Statement.Assign { dst = Register B; src = Const 0 })
   in
   let putc_a =
-    Node.create ~label:"putc_a" ~stmt:(Ast_statement.Putc (Var (Register A)))
+    Node.create ~label:"putc_a" ~stmt:(Ast.Statement.Putc (Var (Register A)))
   in
   let putc_b =
-    Node.create ~label:"putc_b" ~stmt:(Ast_statement.Putc (Var (Register B)))
+    Node.create ~label:"putc_b" ~stmt:(Ast.Statement.Putc (Var (Register B)))
   in
   let b_assign =
     Node.create
       ~label:"b_assign"
-      ~stmt:(Ast_statement.Assign { dst = Register B; src = Const 1 })
+      ~stmt:(Ast.Statement.Assign { dst = Register B; src = Const 1 })
   in
   let jmp =
     Node.create
       ~label:"jmp"
-      ~stmt:(Ast_statement.Jump { cond = None; target = Label "putc_a" })
+      ~stmt:(Ast.Statement.Jump { cond = None; target = Label "putc_a" })
   in
   Node.set_branch a_init (Some (Fallthrough b_init));
   Node.set_references b_init [ { from = a_init; type_ = Fallthrough } ];
@@ -319,42 +319,42 @@ let graph_with_conditional_self_loop () =
   let a_init =
     Node.create
       ~label:"a_init"
-      ~stmt:(Ast_statement.Assign { dst = Register A; src = Const 10 })
+      ~stmt:(Ast.Statement.Assign { dst = Register A; src = Const 10 })
   in
   let putc_a =
-    Node.create ~label:"putc_a" ~stmt:(Ast_statement.Putc (Var (Register A)))
+    Node.create ~label:"putc_a" ~stmt:(Ast.Statement.Putc (Var (Register A)))
   in
   let sub_a =
     Node.create
       ~label:"sub_a"
       ~stmt:
-        (Ast_statement.Assign { dst = Register A; src = Sub (Var (Register A), Const 1) })
+        (Ast.Statement.Assign { dst = Register A; src = Sub (Var (Register A), Const 1) })
   in
   let sub_b =
     Node.create
       ~label:"sub_b"
       ~stmt:
-        (Ast_statement.Assign { dst = Register B; src = Sub (Var (Register B), Const 1) })
+        (Ast.Statement.Assign { dst = Register B; src = Sub (Var (Register B), Const 1) })
   in
   let sub_c =
     Node.create
       ~label:"sub_c"
       ~stmt:
-        (Ast_statement.Assign { dst = Register C; src = Sub (Var (Register C), Const 1) })
+        (Ast.Statement.Assign { dst = Register C; src = Sub (Var (Register C), Const 1) })
   in
   let jmp =
     Node.create
       ~label:"jmp"
       ~stmt:
-        (Ast_statement.Jump
+        (Ast.Statement.Jump
            { cond = Some { cmp = Lt; left = Const 0; right = Var (Register A) }
            ; target = Label "putc_a"
            })
   in
   let putc_b =
-    Node.create ~label:"putc_b" ~stmt:(Ast_statement.Putc (Var (Register B)))
+    Node.create ~label:"putc_b" ~stmt:(Ast.Statement.Putc (Var (Register B)))
   in
-  let exit = Node.create ~label:"exit" ~stmt:Ast_statement.Exit in
+  let exit = Node.create ~label:"exit" ~stmt:Ast.Statement.Exit in
   Node.set_branch a_init (Some (Fallthrough putc_a));
   Node.set_branch putc_a (Some (Fallthrough sub_a));
   Node.set_references sub_a [ { from = putc_a; type_ = Fallthrough } ];
