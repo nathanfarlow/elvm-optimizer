@@ -11,7 +11,9 @@ let rec optimize_until_stable ~opt ~equal e =
 module Expression : sig
   val optimize : Expression.t -> Expression.t
 end = struct
-  let rec optimize e = optimize_until_stable ~opt:optimize' ~equal:Expression.equal e
+  open Expression
+
+  let rec optimize e = optimize_until_stable ~opt:optimize' ~equal e
 
   and optimize' = function
     | Const _ as e -> e
@@ -30,7 +32,7 @@ end = struct
       | Add xs -> xs
       | x -> [ x ])
     |> function
-    | [] -> Expression.Const 0
+    | [] -> Const 0
     | [ x ] -> x
     | xs ->
       (* constant folding *)
@@ -42,15 +44,15 @@ end = struct
       let const_sum = List.sum (module Int) consts ~f:Fn.id in
       (if const_sum = 0 then non_consts else Const const_sum :: non_consts)
       (* sort to maintain canonical order *)
-      |> List.sort ~compare:Expression.compare
-      |> Expression.Add
+      |> List.sort ~compare
+      |> Add
 
   and optimize_sub a b =
     match optimize a, optimize b with
     | Const a, Const b -> Const (a - b)
     | a, Const b when b = 0 -> a
     | a, Const b -> Add [ a; Const (-b) ]
-    | _ when Expression.equal a b -> Const 0
+    | _ when equal a b -> Const 0
     | _ -> Sub (a, b)
 
   and optimize_if cmp left right =
@@ -64,13 +66,12 @@ end = struct
       |> Bool.to_int
       |> Const
     | left, right ->
-      let equal = Expression.equal left right in
-      (match cmp with
-       | Eq when equal -> Const 1
-       | Ne when equal -> Const 0
-       | Lt when equal -> Const 0
-       | Le when equal -> Const 1
-       | _ -> If { cmp; left; right })
+      (match cmp, equal left right with
+       | Eq, true -> Const 1
+       | Ne, true -> Const 0
+       | Lt, true -> Const 0
+       | Le, true -> Const 1
+       | _, false -> If { cmp; left; right })
   ;;
 end
 
@@ -80,22 +81,23 @@ module Statement : sig
   val optimize : Statement.t -> Statement.t
 end = struct
   let optimize_variable = function
-    | Variable.Memory exp ->
-      let exp = optimize_expression exp in
-      Variable.Memory exp
+    | Variable.Memory exp -> Variable.Memory (optimize_expression exp)
     | Register _ as e -> e
+  ;;
+
+  let optimize_condition Ast.Condition.{ cmp; left; right } =
+    Ast.Condition.
+      { cmp; left = optimize_expression left; right = optimize_expression right }
   ;;
 
   let optimize' = function
     | Statement.Assign { dst; src } ->
-      let dst = optimize_variable dst in
-      let src = optimize_expression src in
-      Statement.Assign { dst; src }
+      Statement.Assign { dst = optimize_variable dst; src = optimize_expression src }
     | Putc exp -> Putc (optimize_expression exp)
     | Jump { target; cond } ->
       let target = optimize_expression target in
-      let optimized_cond = Option.map cond ~f:(fun c -> optimize_expression (If c)) in
-      (match optimized_cond with
+      let cond = Option.map cond ~f:optimize_condition in
+      (match Option.map cond ~f:(fun c -> optimize_expression (If c)) with
        | Some (Const 1) -> Jump { target; cond = None }
        | Some (Const 0) -> Nop
        | _ -> Jump { target; cond })
