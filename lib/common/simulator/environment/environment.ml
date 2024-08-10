@@ -6,7 +6,7 @@ module Make
 struct
   module Lhs_map = Map.Make (Lhs)
 
-  type t = Rhs.t Lhs_map.t [@@deriving sexp]
+  type t = Rhs.t Lhs_map.t [@@deriving sexp_of]
 
   type update_result =
     { valid : t

@@ -9,7 +9,7 @@ module rec Expression : sig
     | Sub of t * t
     | Getc
     | If of Condition.t
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   include Environment_rhs_intf.S with type t := t and type lhs := Variable.t
   include Liveness_analyzer_rhs_intf.S with type t := t and type lhs := Variable.t
@@ -27,7 +27,7 @@ end = struct
     | Sub of t * t
     | Getc
     | If of Condition.t
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   let rec substitute t ~from ~to_ =
     if equal t from
@@ -84,14 +84,14 @@ and Comparison : sig
     | Ne
     | Lt
     | Le
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 end = struct
   type t =
     | Eq
     | Ne
     | Lt
     | Le
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 end
 
 and Condition : sig
@@ -100,7 +100,7 @@ and Condition : sig
     ; left : Expression.t
     ; right : Expression.t
     }
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end = struct
@@ -109,7 +109,7 @@ end = struct
     ; left : Expression.t
     ; right : Expression.t
     }
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   let substitute t ~from ~to_ =
     let left, left_changed = Expression.substitute t.left ~from ~to_ in
@@ -122,7 +122,7 @@ and Variable : sig
   type t =
     | Register of Eir.Register.t
     | Memory of Expression.t
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   include Environment_lhs_intf.S with type t := t
   include Liveness_analyzer_lhs_intf.S with type t := t
@@ -132,7 +132,7 @@ end = struct
   type t =
     | Register of Eir.Register.t
     | Memory of Expression.t
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   let substitute t ~from ~to_ =
     match t, from, to_ with
@@ -159,7 +159,7 @@ module Statement = struct
       { dst : Variable.t
       ; src : Expression.t
       }
-    [@@deriving sexp, equal, compare, hash]
+    [@@deriving sexp_of, equal, compare, hash]
   end
 
   module Jump = struct
@@ -167,7 +167,7 @@ module Statement = struct
       { target : Expression.t
       ; cond : Condition.t option
       }
-    [@@deriving sexp, equal, compare, hash]
+    [@@deriving sexp_of, equal, compare, hash]
   end
 
   type t =
@@ -176,7 +176,7 @@ module Statement = struct
     | Jump of Jump.t
     | Exit
     | Nop
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   type lhs = Variable.t
   type rhs = Expression.t
@@ -185,7 +185,7 @@ module Statement = struct
     { from : Variable.t
     ; to_ : Expression.t
     }
-  [@@deriving sexp]
+  [@@deriving sexp_of]
 
   let is_nop = equal Nop
   let nop = Nop

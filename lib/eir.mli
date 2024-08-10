@@ -10,7 +10,7 @@ module Register : sig
     | D
     | SP
     | BP
-  [@@deriving sexp, equal, compare, hash]
+  [@@deriving sexp_of, equal, compare, hash]
 
   val to_string : t -> string
 end
@@ -21,7 +21,7 @@ module Instruction : sig
       | Int of int
       | Label of string
       | Register of Register.t
-    [@@deriving sexp, equal, hash]
+    [@@deriving sexp_of, equal, hash]
   end
 
   module Operands : sig
@@ -29,7 +29,7 @@ module Instruction : sig
       { src : Imm_or_reg.t
       ; dst : Register.t
       }
-    [@@deriving sexp, equal, hash]
+    [@@deriving sexp_of, equal, hash]
   end
 
   module Comparison : sig
@@ -40,7 +40,7 @@ module Instruction : sig
       | Le
       | Gt
       | Ge
-    [@@deriving sexp, equal, hash]
+    [@@deriving sexp_of, equal, hash]
   end
 
   module Condition : sig
@@ -48,7 +48,7 @@ module Instruction : sig
       { cmp : Comparison.t
       ; args : Operands.t
       }
-    [@@deriving sexp, equal, hash]
+    [@@deriving sexp_of, equal, hash]
   end
 
   type t =
@@ -69,14 +69,14 @@ module Instruction : sig
         }
     | Set of Condition.t
     | Dump
-  [@@deriving sexp, equal, hash]
+  [@@deriving sexp_of, equal, hash]
 end
 
 module Segment : sig
   type t =
     | Data
     | Text
-  [@@deriving sexp, equal, hash]
+  [@@deriving sexp_of, equal, hash]
 end
 
 module Address : sig
@@ -84,14 +84,14 @@ module Address : sig
     { segment : Segment.t
     ; offset : int
     }
-  [@@deriving sexp, equal, hash]
+  [@@deriving sexp_of, equal, hash]
 end
 
 module Data : sig
   type t =
     | Const of int
     | Label of string
-  [@@deriving sexp, equal, hash]
+  [@@deriving sexp_of, equal, hash]
 end
 
 val const_heap_start_label : string

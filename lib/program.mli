@@ -4,13 +4,13 @@ module Data : sig
   type type_ =
     | Chunk of Eir.Data.t list
     | Heap
-  [@@deriving sexp, equal, hash]
+  [@@deriving sexp_of, equal, hash]
 
   type t =
     { label : string
     ; type_ : type_
     }
-  [@@deriving sexp, equal, hash]
+  [@@deriving sexp_of, equal, hash]
 end
 
 type t

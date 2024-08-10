@@ -93,7 +93,7 @@ and Reference : sig
   type type_ =
     | Jump
     | Fallthrough
-  [@@deriving sexp, equal, compare]
+  [@@deriving sexp_of, equal, compare]
 
   type 'a t =
     { from : 'a Node.t
@@ -105,7 +105,7 @@ end = struct
   type type_ =
     | Jump
     | Fallthrough
-  [@@deriving sexp, equal, compare]
+  [@@deriving sexp_of, equal, compare]
 
   type 'a t =
     { from : 'a Node.t
