@@ -11,9 +11,6 @@ module rec Expression : sig
     | If of Condition.t
   [@@deriving sexp_of, equal, compare, hash]
 
-  include Environment_rhs_intf.S with type t := t and type lhs := Variable.t
-  include Liveness_analyzer_rhs_intf.S with type t := t and type lhs := Variable.t
-
   val substitute : t -> from:t -> to_:t -> t * bool
 end
 
@@ -43,9 +40,6 @@ and Variable : sig
     | Memory of Expression.t
   [@@deriving sexp_of, equal, compare, hash]
 
-  include Environment_lhs_intf.S with type t := t
-  include Liveness_analyzer_lhs_intf.S with type t := t
-
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end
 
@@ -73,18 +67,4 @@ module Statement : sig
     | Exit
     | Nop
   [@@deriving sexp_of, equal, compare, hash]
-
-  include Statement_intf.S with type t := t
-
-  include
-    Lhs_propagator_statement.S
-    with type t := t
-     and type lhs = Variable.t
-     and type rhs = Expression.t
-
-  include
-    Rhs_propagator_statement_intf.S
-    with type t := t
-     and type lhs := Variable.t
-     and type rhs := Expression.t
 end
