@@ -1,3 +1,4 @@
+open Core
 open Elvm
 module Environment = Environment.Make (Ast.Variable) (Ast.Expression)
 

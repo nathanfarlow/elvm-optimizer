@@ -1,3 +1,4 @@
+open Core
 open Elvm
 
 let print stmt = print_s [%sexp (stmt : Ast_statement.t)]

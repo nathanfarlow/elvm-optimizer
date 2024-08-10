@@ -1,3 +1,4 @@
+open Core
 open Elvm
 
 let print var =

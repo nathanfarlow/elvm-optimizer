@@ -1,3 +1,4 @@
+open Core
 open Elvm
 module Graph_tests = Graph.For_tests (Ast_statement)
 

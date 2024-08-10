@@ -1,3 +1,4 @@
+open Core
 open Elvm
 module Statement_opt = Ast_statement_optimizer.Make (Ast_expression_optimizer)
 
