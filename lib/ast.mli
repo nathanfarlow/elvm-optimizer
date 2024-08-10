@@ -71,6 +71,4 @@ module Statement : sig
     | Exit
     | Nop
   [@@deriving sexp_of, equal, compare, hash]
-
-  val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end

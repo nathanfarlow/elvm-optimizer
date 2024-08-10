@@ -178,34 +178,4 @@ module Statement = struct
     | Exit
     | Nop
   [@@deriving sexp_of, equal, compare, hash]
-
-  type assignment =
-    { from : Variable.t
-    ; to_ : Expression.t
-    }
-  [@@deriving sexp_of]
-
-  let substitute t ~from ~to_ =
-    match t with
-    | Assign { dst; src } ->
-      let dst, dst_changed = Variable.substitute dst ~from ~to_ in
-      let src, src_changed = Expression.substitute src ~from ~to_ in
-      Assign { dst; src }, dst_changed || src_changed
-    | Putc e ->
-      let e, changed = Expression.substitute e ~from ~to_ in
-      Putc e, changed
-    | Getc e ->
-      let e, changed = Variable.substitute e ~from ~to_ in
-      Getc e, changed
-    | Jump { target; cond } ->
-      let target, target_changed = Expression.substitute target ~from ~to_ in
-      let cond, cond_changed =
-        Option.value_map cond ~default:(None, false) ~f:(fun cond ->
-          let cond, changed = Condition.substitute cond ~from ~to_ in
-          Some cond, changed)
-      in
-      Jump { target; cond }, target_changed || cond_changed
-    | Exit -> Exit, false
-    | Nop -> Nop, false
-  ;;
 end
