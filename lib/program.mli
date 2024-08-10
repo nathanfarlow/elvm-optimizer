@@ -1,4 +1,4 @@
-open Core
+open! Core
 
 module Data : sig
   type type_ =
@@ -13,12 +13,12 @@ module Data : sig
   [@@deriving sexp, equal, hash]
 end
 
-type 'a t
+type t
 
-val create : graph:'a Graph.t -> data:Data.t list -> 'a t
-val graph : 'a t -> 'a Graph.t
-val data : 'a t -> Data.t list
+val create : graph:Ast.Statement.t Graph.t -> data:Data.t list -> t
+val graph : t -> Ast.Statement.t Graph.t
+val data : t -> Data.t list
 
-module For_tests (Element : Sexpable) : sig
-  val to_string : Element.t t -> string
+module For_tests : sig
+  val to_string : t -> string
 end

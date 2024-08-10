@@ -1,3 +1,3 @@
 open! Core
 
-val f : Eir.t -> Ast.Statement.t Program.t
+val f : Eir.t -> Program.t

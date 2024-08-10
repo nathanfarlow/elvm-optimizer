@@ -13,18 +13,18 @@ module Data = struct
   [@@deriving sexp, equal, hash]
 end
 
-type 'a t =
-  { graph : 'a Graph.t
+type t =
+  { graph : Ast.Statement.t Graph.t
   ; data : Data.t list
   }
 [@@deriving fields]
 
 let create ~graph ~data = { graph; data }
 
-module For_tests (Element : Sexpable) = struct
-  module Graph_tests = Graph.For_tests (Element)
+module For_tests = struct
+  module Graph_tests = Graph.For_tests (Ast.Statement)
 
-  let to_string (t : Element.t t) =
+  let to_string t =
     ((if not @@ List.is_empty t.data
       then
         [ "data:"
