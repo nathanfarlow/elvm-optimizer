@@ -1,13 +1,15 @@
 open Core
 open Elvm
+open Ast.Expression
+module Var = Ast.Variable
 
-let print exp = Ast.Expression.sexp_of_t exp |> Sexp.to_string_hum |> print_endline
+let print exp = [%sexp (exp : t)] |> print_s
 
 let%expect_test "substitute const" =
-  let exp = Ast.Expression.Const 1 in
-  let from = Ast.Expression.Const 1 in
-  let to_ = Ast.Expression.Const 2 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Const 1 in
+  let from = Const 1 in
+  let to_ = Const 2 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -15,10 +17,10 @@ let%expect_test "substitute const" =
 ;;
 
 let%expect_test "substitute const not match" =
-  let exp = Ast.Expression.Const 1 in
-  let from = Ast.Expression.Const 2 in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Const 1 in
+  let from = Const 2 in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| false |}];
   print exp;
@@ -26,10 +28,10 @@ let%expect_test "substitute const not match" =
 ;;
 
 let%expect_test "substitute label" =
-  let exp = Ast.Expression.Label "a" in
-  let from = Ast.Expression.Label "a" in
-  let to_ = Ast.Expression.Const 2 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Label "a" in
+  let from = Label "a" in
+  let to_ = Const 2 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -37,10 +39,10 @@ let%expect_test "substitute label" =
 ;;
 
 let%expect_test "substitute label not match" =
-  let exp = Ast.Expression.Label "a" in
-  let from = Ast.Expression.Label "b" in
-  let to_ = Ast.Expression.Const 2 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Label "a" in
+  let from = Label "b" in
+  let to_ = Const 2 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| false |}];
   print exp;
@@ -48,10 +50,10 @@ let%expect_test "substitute label not match" =
 ;;
 
 let%expect_test "substitute var" =
-  let exp = Ast.Expression.Var (Register A) in
-  let from = Ast.Expression.Var (Register A) in
-  let to_ = Ast.Expression.Const 2 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Var (Register A) in
+  let from = Var (Register A) in
+  let to_ = Const 2 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -59,10 +61,10 @@ let%expect_test "substitute var" =
 ;;
 
 let%expect_test "substitute var not match" =
-  let exp = Ast.Expression.Var (Register A) in
-  let from = Ast.Expression.Var (Register B) in
-  let to_ = Ast.Expression.Const 2 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Var (Register A) in
+  let from = Var (Register B) in
+  let to_ = Const 2 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| false |}];
   print exp;
@@ -70,10 +72,10 @@ let%expect_test "substitute var not match" =
 ;;
 
 let%expect_test "substitute within add" =
-  let exp = Ast.Expression.Add [ Const 1; Const 2 ] in
-  let from = Ast.Expression.Const 1 in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Add [ Const 1; Const 2 ] in
+  let from = Const 1 in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -81,10 +83,10 @@ let%expect_test "substitute within add" =
 ;;
 
 let%expect_test "substitute within add not match" =
-  let exp = Ast.Expression.Add [ Const 1; Const 2 ] in
-  let from = Ast.Expression.Const 3 in
-  let to_ = Ast.Expression.Const 4 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Add [ Const 1; Const 2 ] in
+  let from = Const 3 in
+  let to_ = Const 4 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| false |}];
   print exp;
@@ -92,10 +94,10 @@ let%expect_test "substitute within add not match" =
 ;;
 
 let%expect_test "substitute add entirely" =
-  let exp = Ast.Expression.Add [ Const 1; Const 2 ] in
+  let exp = Add [ Const 1; Const 2 ] in
   let from = exp in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -103,10 +105,10 @@ let%expect_test "substitute add entirely" =
 ;;
 
 let%expect_test "substitute within sub" =
-  let exp = Ast.Expression.Sub (Const 1, Const 2) in
-  let from = Ast.Expression.Const 1 in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Sub (Const 1, Const 2) in
+  let from = Const 1 in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -114,10 +116,10 @@ let%expect_test "substitute within sub" =
 ;;
 
 let%expect_test "substitute within sub not match" =
-  let exp = Ast.Expression.Sub (Const 1, Const 2) in
-  let from = Ast.Expression.Const 3 in
-  let to_ = Ast.Expression.Const 4 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Sub (Const 1, Const 2) in
+  let from = Const 3 in
+  let to_ = Const 4 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| false |}];
   print exp;
@@ -125,10 +127,10 @@ let%expect_test "substitute within sub not match" =
 ;;
 
 let%expect_test "substitute sub entirely" =
-  let exp = Ast.Expression.Sub (Const 1, Const 2) in
+  let exp = Sub (Const 1, Const 2) in
   let from = exp in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -136,10 +138,10 @@ let%expect_test "substitute sub entirely" =
 ;;
 
 let%expect_test "substitute getc" =
-  let exp = Ast.Expression.Getc in
-  let from = Ast.Expression.Getc in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Getc in
+  let from = Getc in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -147,10 +149,10 @@ let%expect_test "substitute getc" =
 ;;
 
 let%expect_test "substitute getc not match" =
-  let exp = Ast.Expression.Getc in
-  let from = Ast.Expression.Const 1 in
-  let to_ = Ast.Expression.Const 2 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = Getc in
+  let from = Const 1 in
+  let to_ = Const 2 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| false |}];
   print exp;
@@ -158,10 +160,10 @@ let%expect_test "substitute getc not match" =
 ;;
 
 let%expect_test "substitute within if lhs" =
-  let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
-  let from = Ast.Expression.Const 1 in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = If { cmp = Eq; left = Const 1; right = Const 2 } in
+  let from = Const 1 in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -169,10 +171,10 @@ let%expect_test "substitute within if lhs" =
 ;;
 
 let%expect_test "substitute within if rhs" =
-  let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
-  let from = Ast.Expression.Const 2 in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let exp = If { cmp = Eq; left = Const 1; right = Const 2 } in
+  let from = Const 2 in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -180,10 +182,10 @@ let%expect_test "substitute within if rhs" =
 ;;
 
 let%expect_test "substitute if entirely" =
-  let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
+  let exp = If { cmp = Eq; left = Const 1; right = Const 2 } in
   let from = exp in
-  let to_ = Ast.Expression.Const 3 in
-  let exp, changed = Ast.Expression.substitute exp ~from ~to_ in
+  let to_ = Const 3 in
+  let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
   [%expect {| true |}];
   print exp;
@@ -191,81 +193,81 @@ let%expect_test "substitute if entirely" =
 ;;
 
 let%expect_test "contains var in var expression" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Var var in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Var var in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
 ;;
 
 let%expect_test "does not contain var in var expression" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Var (Register B) in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Var (Register B) in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
 ;;
 
 let%expect_test "contains var in add expression" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Add [ Const 1; Var var ] in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Add [ Const 1; Var var ] in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
 ;;
 
 let%expect_test "does not contain var in add expression" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Add [ Const 1; Var (Register B) ] in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Add [ Const 1; Var (Register B) ] in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
 ;;
 
 let%expect_test "contains var in sub lhs" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Sub (Var var, Const 1) in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Sub (Var var, Const 1) in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
 ;;
 
 let%expect_test "contains var in sub rhs" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Sub (Const 1, Var var) in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Sub (Const 1, Var var) in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
 ;;
 
 let%expect_test "contains var in sub neither" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.Sub (Const 1, Const 2) in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = Sub (Const 1, Const 2) in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
 ;;
 
 let%expect_test "contains var in if lhs" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.If { cmp = Eq; left = Var var; right = Const 1 } in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = If { cmp = Eq; left = Var var; right = Const 1 } in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
 ;;
 
 let%expect_test "contains var in if rhs" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Var var } in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = If { cmp = Eq; left = Const 1; right = Var var } in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| true |}]
 ;;
 
 let%expect_test "contains var in if neither" =
-  let var = Ast.Variable.Register A in
-  let exp = Ast.Expression.If { cmp = Eq; left = Const 1; right = Const 2 } in
-  let contains = Ast.Expression.contains exp var in
+  let var = Var.Register A in
+  let exp = If { cmp = Eq; left = Const 1; right = Const 2 } in
+  let contains = contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
 ;;
