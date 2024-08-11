@@ -120,6 +120,7 @@ let add_labels_to_every_instruction eir =
 ;;
 
 let rec make_offset_to_label_mapping eir segment =
+  (* TODO: this is very slow *)
   let exception Eir_changed of Eir.t in
   let offset_to_label = Hashtbl.create (module Int) in
   try

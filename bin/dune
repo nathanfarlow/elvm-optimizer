@@ -1,4 +1,6 @@
 (executable
  (public_name elvm)
  (name main)
- (libraries elvm))
+ (libraries elvm async core core_unix.command_unix)
+ (preprocess
+  (pps ppx_jane)))
