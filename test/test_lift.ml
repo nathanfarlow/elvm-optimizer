@@ -19,8 +19,8 @@ let%expect_test "mov is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts ((Assign ((dst (Register A)) (src (Var (Register A)))))))
-           (in_ ()) (out ())))))))
+          ((v ((Assign ((dst (Register A)) (src (Var (Register A))))))) (in_ ())
+           (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -32,7 +32,7 @@ let%expect_test "add is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts
+          ((v
             ((Assign
               ((dst (Register A)) (src (Add ((Var (Register A)) (Label label))))))))
            (in_ ()) (out ())))))))
@@ -47,7 +47,7 @@ let%expect_test "sub is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts
+          ((v
             ((Assign
               ((dst (Register A)) (src (Sub (Var (Register A)) (Const 5)))))))
            (in_ ()) (out ())))))))
@@ -62,7 +62,7 @@ let%expect_test "load is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts
+          ((v
             ((Assign
               ((dst (Register A)) (src (Var (Memory (Var (Register B)))))))))
            (in_ ()) (out ())))))))
@@ -77,7 +77,7 @@ let%expect_test "store is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts
+          ((v
             ((Assign
               ((dst (Memory (Var (Register A)))) (src (Var (Register B)))))))
            (in_ ()) (out ())))))))
@@ -90,7 +90,7 @@ let%expect_test "putc is lifted correctly" =
   [%expect
     {|
     ((graph
-      ((nodes ((__L0 ((stmts ((Putc (Var (Register A))))) (in_ ()) (out ())))))))
+      ((nodes ((__L0 ((v ((Putc (Var (Register A))))) (in_ ()) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -99,7 +99,7 @@ let%expect_test "getc is lifted correctly" =
   eir [ Getc A ] [] [];
   [%expect
     {|
-    ((graph ((nodes ((__L0 ((stmts ((Getc (Register A)))) (in_ ()) (out ())))))))
+    ((graph ((nodes ((__L0 ((v ((Getc (Register A)))) (in_ ()) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -108,7 +108,7 @@ let%expect_test "exit is lifted correctly" =
   eir [ Exit ] [] [];
   [%expect
     {|
-    ((graph ((nodes ((__L0 ((stmts (Exit)) (in_ ()) (out ())))))))
+    ((graph ((nodes ((__L0 ((v (Exit)) (in_ ()) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -120,7 +120,7 @@ let%expect_test "jump is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts ((Jump ((target (Var (Register A))) (cond ()))))) (in_ ())
+          ((v ((Jump ((target (Var (Register A))) (cond ()))))) (in_ ())
            (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
@@ -133,7 +133,7 @@ let%expect_test "set is lifted correctly" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts
+          ((v
             ((Assign
               ((dst (Register B))
                (src
@@ -148,7 +148,7 @@ let%expect_test "dump is lifted correctly to nop" =
   eir [ Dump ] [] [];
   [%expect
     {|
-    ((graph ((nodes ((__L0 ((stmts (Nop)) (in_ ()) (out ())))))))
+    ((graph ((nodes ((__L0 ((v (Nop)) (in_ ()) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -160,7 +160,7 @@ let%expect_test "many text labels are eliminated" =
   eir insns labels [];
   [%expect
     {|
-    ((graph ((nodes ((__L0 ((stmts (Exit)) (in_ ()) (out ())))))))
+    ((graph ((nodes ((__L0 ((v (Exit)) (in_ ()) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -171,7 +171,7 @@ let%expect_test "main is not clobbered" =
   eir insns labels [];
   [%expect
     {|
-    ((graph ((nodes ((main ((stmts (Exit)) (in_ ()) (out ())))))))
+    ((graph ((nodes ((main ((v (Exit)) (in_ ()) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -184,9 +184,9 @@ let%expect_test "fallthrough branches are added for each instruction" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts ((Assign ((dst (Register A)) (src (Var (Register A)))))))
-           (in_ ()) (out ((Unconditional __L1)))))
-         (__L1 ((stmts (Exit)) (in_ (__L0)) (out ())))))))
+          ((v ((Assign ((dst (Register A)) (src (Var (Register A))))))) (in_ ())
+           (out ((Unconditional __L1)))))
+         (__L1 ((v (Exit)) (in_ (__L0)) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -200,9 +200,9 @@ let%expect_test "unconditional branch has edge to target" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts ((Jump ((target (Label __L1)) (cond ()))))) (in_ ())
+          ((v ((Jump ((target (Label __L1)) (cond ()))))) (in_ ())
            (out ((Unconditional __L1)))))
-         (__L1 ((stmts (Exit)) (in_ (__L0)) (out ())))))))
+         (__L1 ((v (Exit)) (in_ (__L0)) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -224,16 +224,16 @@ let%expect_test "conditional branch have edges to targets" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts
+          ((v
             ((Jump
               ((target (Label __L2))
                (cond
                 (((cmp Eq) (left (Var (Register A))) (right (Var (Register B))))))))))
            (in_ ()) (out ((Conditional (true_ __L2) (false_ __L1))))))
          (__L1
-          ((stmts ((Putc (Var (Register A))))) (in_ (__L0))
+          ((v ((Putc (Var (Register A))))) (in_ (__L0))
            (out ((Unconditional __L2)))))
-         (__L2 ((stmts (Exit)) (in_ (__L1 __L0)) (out ())))))))
+         (__L2 ((v (Exit)) (in_ (__L1 __L0)) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -245,7 +245,7 @@ let%expect_test "data references are updated for label rewrite" =
   eir insns labels data;
   [%expect
     {|
-    ((graph ((nodes ((__L0 ((stmts (Exit)) (in_ ()) (out ())))))))
+    ((graph ((nodes ((__L0 ((v (Exit)) (in_ ()) (out ())))))))
      (data
       (((label __reserved_heap_base) (type_ Heap))
        ((label __D0) (type_ (Chunk ((Label __L0))))))))
@@ -265,7 +265,7 @@ let%expect_test "data is segmented correctly" =
   eir insns labels data;
   [%expect
     {|
-    ((graph ((nodes ((__L0 ((stmts (Exit)) (in_ ()) (out ())))))))
+    ((graph ((nodes ((__L0 ((v (Exit)) (in_ ()) (out ())))))))
      (data
       (((label __reserved_heap_base) (type_ Heap))
        ((label foo) (type_ (Chunk ((Const 0) (Const 1)))))
@@ -288,8 +288,7 @@ let%expect_test "text references are updated for label rewrite" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts ((Assign ((dst (Register A)) (src (Label a)))))) (in_ ())
-           (out ())))))))
+          ((v ((Assign ((dst (Register A)) (src (Label a)))))) (in_ ()) (out ())))))))
      (data
       (((label __reserved_heap_base) (type_ Heap))
        ((label a) (type_ (Chunk ((Const 0))))))))
@@ -318,11 +317,11 @@ let%expect_test "program with two top blocks" =
     {|
     ((graph
       ((nodes
-        ((__L0 ((stmts (Exit)) (in_ ()) (out ())))
+        ((__L0 ((v (Exit)) (in_ ()) (out ())))
          (__L1
-          ((stmts ((Assign ((dst (Register A)) (src (Var (Register B)))))))
-           (in_ ()) (out ((Unconditional __L2)))))
-         (__L2 ((stmts (Nop)) (in_ (__L1)) (out ())))))))
+          ((v ((Assign ((dst (Register A)) (src (Var (Register B))))))) (in_ ())
+           (out ((Unconditional __L2)))))
+         (__L2 ((v (Nop)) (in_ (__L1)) (out ())))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]
 ;;
@@ -336,7 +335,7 @@ let%expect_test "program with self loop" =
     ((graph
       ((nodes
         ((__L0
-          ((stmts ((Jump ((target (Label __L0)) (cond ()))))) (in_ (__L0))
+          ((v ((Jump ((target (Label __L0)) (cond ()))))) (in_ (__L0))
            (out ((Unconditional __L0)))))))))
      (data (((label __reserved_heap_base) (type_ Heap)))))
     |}]

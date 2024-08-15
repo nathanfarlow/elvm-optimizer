@@ -4,12 +4,10 @@ module type Sexp_of_m = sig
   type t [@@deriving sexp_of]
 end
 
-[@@@warning "-69"]
-
 module Node = struct
   type 'a t =
     { id : string
-    ; stmts : 'a list
+    ; v : 'a
     ; mutable in_ : 'a t list
     ; mutable out : 'a out option
     }
@@ -44,7 +42,7 @@ module Node = struct
        cycles *)
     let module Sexpable = struct
       type 'a t =
-        { stmts : 'a list
+        { v : 'a
         ; in_ : string list
         ; out : 'a out option
         }
@@ -59,7 +57,7 @@ module Node = struct
       [@@deriving sexp_of]
     end
     in
-    { Sexpable.stmts = t.stmts
+    { Sexpable.v = t.v
     ; in_ = List.map t.in_ ~f:id
     ; out =
         Option.map t.out ~f:(function
@@ -76,8 +74,8 @@ type 'a t = { mutable nodes : 'a Node.t Map.M(String).t } [@@deriving sexp_of]
 let nodes t = t.nodes
 let create () = { nodes = Map.empty (module String) }
 
-let add t id stmts =
-  let node = { Node.id; stmts; in_ = []; out = None } in
+let add t id v =
+  let node = { Node.id; v; in_ = []; out = None } in
   t.nodes <- Map.set t.nodes ~key:id ~data:node;
   node
 ;;

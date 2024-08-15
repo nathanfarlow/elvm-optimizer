@@ -24,7 +24,7 @@ type 'a t [@@deriving sexp_of]
 
 val create : unit -> 'a t
 val nodes : 'a t -> 'a Node.t Map.M(String).t
-val add : 'a t -> string -> 'a list -> 'a Node.t
+val add : 'a t -> string -> 'a -> 'a Node.t
 val remove : 'a t -> 'a Node.t -> unit
 val find : 'a t -> string -> 'a Node.t option
 val find_exn : 'a t -> string -> 'a Node.t
