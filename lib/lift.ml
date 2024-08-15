@@ -176,7 +176,6 @@ let make_statement_edges eir pc_to_label =
 ;;
 
 let make_graph statements out_edges =
-  let module Graph = Graph.Make (Ast.Statement) in
   let graph = Graph.create () in
   (* create nodes without edges *)
   Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->

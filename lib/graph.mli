@@ -1,30 +1,38 @@
 open Core
 
-module Make (V : sig
-    type t [@@deriving sexp_of]
-  end) : sig
-  module Node : sig
-    type t [@@deriving sexp_of]
-
-    type out =
-      | Unconditional of t
-      | Conditional of
-          { true_ : t
-          ; false_ : t
-          }
-
-    val in_ : t -> t list
-    val add_in : t -> t -> unit
-    val out : t -> out option
-    val set_out : t -> out option -> unit
-  end
-
+module type Sexp_of_m = sig
   type t [@@deriving sexp_of]
-
-  val create : unit -> t
-  val nodes : t -> Node.t Map.M(String).t
-  val add : t -> string -> V.t list -> Node.t
-  val remove : t -> Node.t -> unit
-  val find : t -> string -> Node.t option
-  val find_exn : t -> string -> Node.t
 end
+
+module Node : sig
+  type 'a t
+
+  type 'a out =
+    | Unconditional of 'a t
+    | Conditional of
+        { true_ : 'a t
+        ; false_ : 'a t
+        }
+
+  val in_ : 'a t -> 'a t list
+  val add_in : 'a t -> 'a t -> unit
+  val out : 'a t -> 'a out option
+  val set_out : 'a t -> 'a out option -> unit
+end
+
+type 'a t [@@deriving sexp_of]
+
+val create : unit -> 'a t
+val nodes : 'a t -> 'a Node.t Map.M(String).t
+val add : 'a t -> string -> 'a list -> 'a Node.t
+val remove : 'a t -> 'a Node.t -> unit
+val find : 'a t -> string -> 'a Node.t option
+val find_exn : 'a t -> string -> 'a Node.t
+
+(* module M (V : sig *)
+(*     type t *)
+(*   end) : sig *)
+(*   type nonrec t = V.t t *)
+(* end *)
+
+(* val sexp_of_m__t : (module Sexp_of_m with type t = 'v) -> 'v t -> Sexp.t *)
