@@ -13,6 +13,8 @@ module Data = struct
   [@@deriving sexp_of, equal, hash]
 end
 
+module Graph = Graph.Make (Ast.Statement)
+
 type t =
   { graph : Graph.t
   ; data : Data.t list

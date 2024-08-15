@@ -14,7 +14,7 @@ module Data : sig
 end
 
 type t =
-  { graph : Graph.t
+  { graph : Graph.Make(Ast.Statement).t
   ; data : Data.t list
   }
 [@@deriving sexp_of, fields]
