@@ -28,11 +28,3 @@ val add : 'a t -> string -> 'a list -> 'a Node.t
 val remove : 'a t -> 'a Node.t -> unit
 val find : 'a t -> string -> 'a Node.t option
 val find_exn : 'a t -> string -> 'a Node.t
-
-(* module M (V : sig *)
-(*     type t *)
-(*   end) : sig *)
-(*   type nonrec t = V.t t *)
-(* end *)
-
-(* val sexp_of_m__t : (module Sexp_of_m with type t = 'v) -> 'v t -> Sexp.t *)

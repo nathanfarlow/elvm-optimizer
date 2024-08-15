@@ -39,7 +39,6 @@ module Node = struct
 
   let add_in t parent = t.in_ <- parent :: t.in_
 
-  (* let sexp_of_t : 'a. ('a -> Sexplib0.Sexp.t) -> 'a t -> Sexplib0.Sexp.t = sexp_of_list *)
   let sexp_of_t sexp_of__a t =
     (* Define a custom type for sexp serialization to avoid infinite loops in
        cycles *)
