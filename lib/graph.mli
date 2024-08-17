@@ -1,9 +1,5 @@
 open Core
 
-module type Sexp_of_m = sig
-  type t [@@deriving sexp_of]
-end
-
 module Node : sig
   type 'a t
 
@@ -14,8 +10,11 @@ module Node : sig
         ; false_ : 'a t
         }
 
+  val id : 'a t -> string
+  val v : 'a t -> 'a
+  val set_v : 'a t -> 'a -> unit
   val in_ : 'a t -> 'a t list
-  val add_in : 'a t -> 'a t -> unit
+  val set_in : 'a t -> 'a t list -> unit
   val out : 'a t -> 'a out option
   val set_out : 'a t -> 'a out option -> unit
 end
@@ -28,3 +27,4 @@ val add : 'a t -> string -> 'a -> 'a Node.t
 val remove : 'a t -> 'a Node.t -> unit
 val find : 'a t -> string -> 'a Node.t option
 val find_exn : 'a t -> string -> 'a Node.t
+val to_dot : 'a t -> ('a -> string) -> string

@@ -1,13 +1,9 @@
 open Core
 
-module type Sexp_of_m = sig
-  type t [@@deriving sexp_of]
-end
-
 module Node = struct
   type 'a t =
     { id : string
-    ; v : 'a
+    ; mutable v : 'a
     ; mutable in_ : 'a t list
     ; mutable out : 'a out option
     }
@@ -35,7 +31,7 @@ module Node = struct
   (** Does t have this child in its out edges? *)
   let has_child t ~child = List.mem (out_as_list t) child ~equal:equal_id
 
-  let add_in t parent = t.in_ <- parent :: t.in_
+  let set_in = set_in_
 
   let sexp_of_t sexp_of__a t =
     (* Define a custom type for sexp serialization to avoid infinite loops in
@@ -88,3 +84,20 @@ let remove t node =
 
 let find t = Map.find t.nodes
 let find_exn t = Map.find_exn t.nodes
+
+let to_dot t to_string =
+  let buf = Buffer.create 100 in
+  let add_line s = Buffer.add_string buf (s ^ "\n") in
+  add_line "digraph G {";
+  Map.iteri t.nodes ~f:(fun ~key:id ~data:node ->
+    let node_str = to_string node.v |> String.split_lines |> String.concat ~sep:"\\l" in
+    add_line (sprintf "  %s [label=<\\l%s:\\l\\l%s>];" id id node_str);
+    match node.out with
+    | None -> ()
+    | Some (Unconditional child) -> add_line (sprintf "  %s -> %s;" id child.id)
+    | Some (Conditional { true_; false_ }) ->
+      add_line (sprintf "  %s -> %s [label=\"true\"];" id true_.id);
+      add_line (sprintf "  %s -> %s [label=\"false\"];" id false_.id));
+  add_line "}";
+  Buffer.contents buf
+;;

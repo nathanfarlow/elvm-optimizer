@@ -185,7 +185,7 @@ let make_graph statements out_edges =
     let from = Graph.find_exn graph from in
     List.iter to_ ~f:(fun (label, _) ->
       let to_ = Graph.find_exn graph label in
-      Graph.Node.add_in to_ from));
+      Graph.Node.(set_in to_ (from :: in_ to_))));
   (* fill in branches *)
   Map.iteri (Graph.nodes graph) ~f:(fun ~key:label ~data:node ->
     Graph.Node.set_out
