@@ -19,7 +19,7 @@ module Node : sig
   val set_out : 'a t -> 'a out option -> unit
 end
 
-type 'a t [@@deriving sexp_of]
+type 'a t
 
 val create : unit -> 'a t
 val nodes : 'a t -> 'a Node.t Map.M(String).t

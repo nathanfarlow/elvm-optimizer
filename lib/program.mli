@@ -17,4 +17,3 @@ type t =
   { graph : Ast.Statement.t list Graph.t
   ; data : Data.t list
   }
-[@@deriving sexp_of, fields]

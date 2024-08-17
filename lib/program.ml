@@ -14,7 +14,6 @@ module Data = struct
 end
 
 type t =
-  { graph : Ast.Statement.t list Graph.t
+  { graph : (Ast.Statement.t list Graph.t[@sexp.opaque])
   ; data : Data.t list
   }
-[@@deriving sexp_of, fields]

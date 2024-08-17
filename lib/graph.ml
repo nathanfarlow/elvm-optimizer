@@ -32,40 +32,9 @@ module Node = struct
   let has_child t ~child = List.mem (out_as_list t) child ~equal:equal_id
 
   let set_in = set_in_
-
-  let sexp_of_t sexp_of__a t =
-    (* Define a custom type for sexp serialization to avoid infinite loops in
-       cycles *)
-    let module Sexpable = struct
-      type 'a t =
-        { v : 'a
-        ; in_ : string list
-        ; out : 'a out option
-        }
-      [@@deriving sexp_of]
-
-      and 'a out =
-        | Unconditional of string
-        | Conditional of
-            { true_ : string
-            ; false_ : string
-            }
-      [@@deriving sexp_of]
-    end
-    in
-    { Sexpable.v = t.v
-    ; in_ = List.map t.in_ ~f:id
-    ; out =
-        Option.map t.out ~f:(function
-          | Unconditional t -> Sexpable.Unconditional t.id
-          | Conditional { true_; false_ } ->
-            Conditional { true_ = true_.id; false_ = false_.id })
-    }
-    |> Sexpable.sexp_of_t sexp_of__a
-  ;;
 end
 
-type 'a t = { mutable nodes : 'a Node.t Map.M(String).t } [@@deriving sexp_of]
+type 'a t = { mutable nodes : 'a Node.t Map.M(String).t }
 
 let nodes t = t.nodes
 let create () = { nodes = Map.empty (module String) }
