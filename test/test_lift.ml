@@ -430,7 +430,8 @@ let%expect_test "program with two top blocks" =
   let labels = [ main; ("a", Eir.Address.{ segment = Text; offset = 1 }) ] in
   let insns = [ Eir.Instruction.Exit; Mov { dst = A; src = Register B }; Exit ] in
   let%bind () = eir ~insns ~labels () |> print_graph in
-  [%expect {|
+  [%expect
+    {|
     +--------------------------------------------------------+
     |                                                        |
     | a:                                                     |
@@ -459,6 +460,22 @@ let%expect_test "program with two top blocks" =
 let%expect_test "program with self loop" =
   let labels = [ main ] in
   let insns = [ Eir.Instruction.Jump { target = Label "main"; cond = None } ] in
+  let%bind () = eir ~insns ~labels () |> print_graph in
+  [%expect
+    {|
+    +------------------------------------------+
+    |                                          |
+    | main:                                    | ---+
+    |                                          |    |
+    | (Jump ((target (Label main)) (cond ()))) | <--+
+    +------------------------------------------+
+    |}];
+  return ()
+;;
+
+let%expect_test "program with duplicate labels" =
+  let labels = [ ("other_main", Eir.Address.{ segment = Text; offset = 0 }); main ] in
+  let insns = [ Eir.Instruction.Jump { target = Label "other_main"; cond = None } ] in
   let%bind () = eir ~insns ~labels () |> print_graph in
   [%expect
     {|
