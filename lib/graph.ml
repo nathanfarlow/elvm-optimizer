@@ -85,3 +85,43 @@ let rec fresh_label t =
   t.i <- t.i + 1;
   if Map.mem t.nodes label then fresh_label t else label
 ;;
+
+let map t ~f =
+  (* TODO: we should change this representation *)
+  let t' = create () in
+  let rec insert node =
+    if Map.mem t'.nodes node.Node.id
+    then ()
+    else (
+      let node' = add t' node.Node.id (f node.Node.v) in
+      List.iter node.Node.in_ ~f:(fun parent -> insert parent);
+      Node.set_in
+        node'
+        (List.map node.Node.in_ ~f:(fun parent -> Map.find_exn t'.nodes parent.Node.id));
+      match node.Node.out with
+      | None -> ()
+      | Some (Fallthrough child) ->
+        insert child;
+        Node.set_out node' (Some (Fallthrough (Map.find_exn t'.nodes child.Node.id)))
+      | Some (Jump (Unconditional child)) ->
+        insert child;
+        Node.set_out
+          node'
+          (Some (Jump (Unconditional (Map.find_exn t'.nodes child.Node.id))))
+      | Some (Jump (Conditional { true_; false_ })) ->
+        insert true_;
+        insert false_;
+        Node.set_out
+          node'
+          (Some
+             (Jump
+                (Conditional
+                   { true_ = Map.find_exn t'.nodes true_.Node.id
+                   ; false_ = Map.find_exn t'.nodes false_.Node.id
+                   }))))
+  in
+  Map.iteri t.nodes ~f:(fun ~key:_ ~data:node -> insert node);
+  t'
+;;
+
+let iter t ~f = Map.iteri t.nodes ~f:(fun ~key:_ ~data:node -> f node)

@@ -8,7 +8,7 @@ module rec Expression : sig
     | Add of t list
     | Sub of t * t
     | If of Condition.t
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:t -> to_:t -> t * bool
   val contains : t -> Variable.t -> bool
@@ -20,7 +20,7 @@ and Comparison : sig
     | Ne
     | Lt
     | Le
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 end
 
 and Condition : sig
@@ -29,7 +29,7 @@ and Condition : sig
     ; left : Expression.t
     ; right : Expression.t
     }
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end
@@ -38,7 +38,7 @@ and Variable : sig
   type t =
     | Register of Eir.Register.t
     | Memory of Expression.t
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
   val contains : t -> t -> bool
@@ -52,7 +52,7 @@ module Statement : sig
       { dst : Variable.t
       ; src : Expression.t
       }
-    [@@deriving sexp_of, equal, compare, hash]
+    [@@deriving sexp, equal, compare, hash]
   end
 
   module Jump : sig
@@ -60,7 +60,7 @@ module Statement : sig
       { target : Expression.t
       ; cond : Condition.t option
       }
-    [@@deriving sexp_of, equal, compare, hash]
+    [@@deriving sexp, equal, compare, hash]
   end
 
   type t =
@@ -70,5 +70,5 @@ module Statement : sig
     | Jump of Jump.t
     | Exit
     | Nop
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 end

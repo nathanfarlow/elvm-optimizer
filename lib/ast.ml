@@ -8,7 +8,7 @@ module rec Expression : sig
     | Add of t list
     | Sub of t * t
     | If of Condition.t
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:t -> to_:t -> t * bool
   val contains : t -> Variable.t -> bool
@@ -20,7 +20,7 @@ end = struct
     | Add of t list
     | Sub of t * t
     | If of Condition.t
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   let rec substitute t ~from ~to_ =
     if equal t from
@@ -66,14 +66,14 @@ and Comparison : sig
     | Ne
     | Lt
     | Le
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 end = struct
   type t =
     | Eq
     | Ne
     | Lt
     | Le
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 end
 
 and Condition : sig
@@ -82,7 +82,7 @@ and Condition : sig
     ; left : Expression.t
     ; right : Expression.t
     }
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
 end = struct
@@ -91,7 +91,7 @@ end = struct
     ; left : Expression.t
     ; right : Expression.t
     }
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   let substitute t ~from ~to_ =
     let left, left_changed = Expression.substitute t.left ~from ~to_ in
@@ -104,7 +104,7 @@ and Variable : sig
   type t =
     | Register of Eir.Register.t
     | Memory of Expression.t
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   val substitute : t -> from:Expression.t -> to_:Expression.t -> t * bool
   val contains : t -> t -> bool
@@ -114,7 +114,7 @@ end = struct
   type t =
     | Register of Eir.Register.t
     | Memory of Expression.t
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 
   let substitute t ~from ~to_ =
     match t, from, to_ with
@@ -135,7 +135,7 @@ end = struct
   ;;
 
   include Comparator.Make (struct
-      type nonrec t = t [@@deriving sexp_of]
+      type nonrec t = t [@@deriving sexp]
 
       let compare = compare
     end)
@@ -147,7 +147,7 @@ module Statement = struct
       { dst : Variable.t
       ; src : Expression.t
       }
-    [@@deriving sexp_of, equal, compare, hash]
+    [@@deriving sexp, equal, compare, hash]
   end
 
   module Jump = struct
@@ -155,7 +155,7 @@ module Statement = struct
       { target : Expression.t
       ; cond : Condition.t option
       }
-    [@@deriving sexp_of, equal, compare, hash]
+    [@@deriving sexp, equal, compare, hash]
   end
 
   type t =
@@ -165,5 +165,5 @@ module Statement = struct
     | Jump of Jump.t
     | Exit
     | Nop
-  [@@deriving sexp_of, equal, compare, hash]
+  [@@deriving sexp, equal, compare, hash]
 end

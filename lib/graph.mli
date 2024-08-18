@@ -21,6 +21,7 @@ module Node : sig
   val set_in : 'a t -> 'a t list -> unit
   val out : 'a t -> 'a out option
   val set_out : 'a t -> 'a out option -> unit
+  val out_as_list : 'a t -> 'a t list
 end
 
 type 'a t
@@ -33,3 +34,5 @@ val find : 'a t -> string -> 'a Node.t option
 val find_exn : 'a t -> string -> 'a Node.t
 val to_dot : 'a t -> ('a -> string) -> string
 val fresh_label : 'a t -> string
+val map : 'a t -> f:('a -> 'b) -> 'b t
+val iter : 'a t -> f:('a Node.t -> unit) -> unit
