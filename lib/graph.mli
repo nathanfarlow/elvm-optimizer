@@ -3,12 +3,16 @@ open Core
 module Node : sig
   type 'a t
 
-  type 'a out =
+  type 'a jmp =
     | Unconditional of 'a t
     | Conditional of
         { true_ : 'a t
         ; false_ : 'a t
         }
+
+  type 'a out =
+    | Fallthrough of 'a t
+    | Jump of 'a jmp
 
   val id : 'a t -> string
   val v : 'a t -> 'a

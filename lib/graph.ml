@@ -9,20 +9,25 @@ module Node = struct
     }
   [@@deriving fields ~getters ~setters]
 
-  and 'a out =
+  and 'a jmp =
     | Unconditional of 'a t
     | Conditional of
         { true_ : 'a t
         ; false_ : 'a t
         }
 
+  and 'a out =
+    | Fallthrough of 'a t
+    | Jump of 'a jmp
+
   let equal_id t1 t2 = String.equal t1.id t2.id
 
   let out_as_list t =
     match t.out with
     | None -> []
-    | Some (Unconditional t') -> [ t' ]
-    | Some (Conditional { true_; false_ }) -> [ true_; false_ ]
+    | Some (Fallthrough t') -> [ t' ]
+    | Some (Jump (Unconditional t')) -> [ t' ]
+    | Some (Jump (Conditional { true_; false_ })) -> [ true_; false_ ]
   ;;
 
   (** Does t have this parent in its in edges? *)
@@ -63,8 +68,9 @@ let to_dot t to_string =
     add_line (sprintf "  %s [label=<\\l%s:\\l\\l%s>];" id id node_str);
     match node.out with
     | None -> ()
-    | Some (Unconditional child) -> add_line (sprintf "  %s -> %s;" id child.id)
-    | Some (Conditional { true_; false_ }) ->
+    | Some (Fallthrough child | Jump (Unconditional child)) ->
+      add_line (sprintf "  %s -> %s;" id child.id)
+    | Some (Jump (Conditional { true_; false_ })) ->
       add_line (sprintf "  %s -> %s [label=\"true\"];" id true_.id);
       add_line (sprintf "  %s -> %s [label=\"false\"];" id false_.id));
   add_line "}";

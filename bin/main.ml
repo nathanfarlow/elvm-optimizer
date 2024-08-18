@@ -8,10 +8,7 @@ let () =
        (let%map_open.Command file =
           flag "-file" ~doc:"FILE elvm program" (required Filename_unix.arg_type)
         in
-        fun () ->
-          In_channel.read_all file
-          |> Eir.parse_exn
-          |> Elvm.Lift.f
-          |> [%sexp_of: Program.t]
-          |> print_s))
+        fun () -> In_channel.read_all file |> Eir.parse_exn |> Elvm.Lift.f |> ignore))
 ;;
+(* |> [%sexp_of: Program.t] *)
+(* |> print_s)) *)

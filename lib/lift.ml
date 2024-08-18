@@ -2,7 +2,7 @@ open Core
 open Ast
 module Insn = Eir.Instruction
 
-let lift_reg r = Ast.Variable.Register r
+let lift_reg r = Variable.Register r
 
 let lift_imm_or_reg : Insn.Imm_or_reg.t -> Expression.t = function
   | Int x -> Const x
@@ -10,7 +10,7 @@ let lift_imm_or_reg : Insn.Imm_or_reg.t -> Expression.t = function
   | Label x -> Label x
 ;;
 
-let lift_cond Insn.Condition.{ cmp; args } : Ast.Condition.t =
+let lift_cond Insn.Condition.{ cmp; args } : Condition.t =
   let left = lift_imm_or_reg (Register args.dst) in
   let right = lift_imm_or_reg args.src in
   match cmp with
@@ -22,7 +22,7 @@ let lift_cond Insn.Condition.{ cmp; args } : Ast.Condition.t =
   | Ge -> { cmp = Lt; left = right; right = left }
 ;;
 
-let lift_insn : Insn.t -> Ast.Statement.t = function
+let lift_insn : Insn.t -> Statement.t = function
   | Mov { dst; src } ->
     let src = lift_imm_or_reg src in
     Assign { dst = lift_reg dst; src }
@@ -55,8 +55,8 @@ let lift_insn : Insn.t -> Ast.Statement.t = function
 ;;
 
 (** f is a mapping from label -> new label *)
-let update_labels eir ~f =
-  let f = Memo.general f in
+let update_labels eir mapping =
+  let f label = Map.find mapping label |> Option.value ~default:label in
   let labels = Hashtbl.create (module String) in
   Hashtbl.iteri (Eir.labels eir) ~f:(fun ~key ~data ->
     Hashtbl.set labels ~key:(f key) ~data);
@@ -93,147 +93,98 @@ let update_labels eir ~f =
   Eir.create ~insns ~labels ~data
 ;;
 
-let sorted_alist map ~compare =
-  let alist = Hashtbl.to_alist map in
-  List.sort alist ~compare:(fun (a, _) (b, _) -> compare a b)
+let offset_to_label eir segment =
+  (* TODO: After we update eir we can remove some of these workarounds *)
+  Eir.labels eir
+  |> Map.of_hashtbl_exn (module String)
+  |> Map.filter_map ~f:(function
+    | { segment = s; offset } when Eir.Segment.equal segment s -> Some offset
+    | _ -> None)
+  |> Map.filter_keys ~f:(String.( <> ) Eir.const_heap_start_label)
+  |> Map.to_alist
+  |> List.map ~f:Tuple2.swap
 ;;
 
-let fresh_label prefix eir =
-  let i = ref 0 in
-  let rec loop () =
-    let label = [%string "%{prefix}%{!i#Int}"] in
-    incr i;
-    if Hashtbl.mem (Eir.labels eir) label then loop () else label
+let delete_duplicate_labels eir =
+  let mappings l =
+    l
+    |> Map.of_alist_multi (module Int)
+    |> Map.data
+    |> List.concat_map ~f:(fun l ->
+      let name =
+        match List.mem l "main" ~equal:String.equal with
+        | true -> "main"
+        | false -> List.hd_exn l
+      in
+      List.map l ~f:(fun x -> x, name))
+    |> Map.of_alist_exn (module String)
   in
-  loop
+  Map.merge_disjoint_exn
+    (mappings (offset_to_label eir Data))
+    (mappings (offset_to_label eir Text))
+  |> update_labels eir
 ;;
 
-let add_labels_to_every_instruction eir =
-  let fresh = fresh_label "__L" eir in
-  let num_insns = List.length (Eir.insns eir) in
-  let labels = Hashtbl.copy (Eir.labels eir) in
-  for i = 0 to num_insns - 1 do
-    let label = fresh () in
-    Hashtbl.add_exn labels ~key:label ~data:{ segment = Text; offset = i }
-  done;
-  Eir.create ~insns:(Eir.insns eir) ~labels ~data:(Eir.data eir)
+let chunk l offset_to_label =
+  List.zip_exn
+    (Map.data offset_to_label)
+    (List.groupi l ~break:(fun i _ _ -> Map.mem offset_to_label i))
 ;;
 
-let rec make_offset_to_label_mapping eir segment =
-  (* TODO: this is very slow *)
-  let exception Eir_changed of Eir.t in
-  let offset_to_label = Hashtbl.create (module Int) in
-  try
-    Hashtbl.filter (Eir.labels eir) ~f:(fun { segment = s; _ } ->
-      Eir.Segment.equal s segment)
-    (* sort to eliminate nondeterminism in which duplicate label we'll remove*)
-    |> sorted_alist ~compare:String.compare
-    |> List.iter ~f:(fun (cur_label, { offset; _ }) ->
-      match Hashtbl.find offset_to_label offset with
-      (* first time we've seen this offset *)
-      | None -> Hashtbl.add_exn offset_to_label ~key:offset ~data:cur_label
-      | Some prev_label ->
-        (* this is an address at the same place as another. Keep the old one
-           unless the new one is "main" *)
-        let keep, replace =
-          if String.equal cur_label "main"
-          then cur_label, prev_label
-          else prev_label, cur_label
-        in
-        let eir_with_label_removed =
-          update_labels eir ~f:(fun label ->
-            if String.equal label replace then keep else label)
-        in
-        raise (Eir_changed eir_with_label_removed));
-    eir, offset_to_label
-  with
-  | Eir_changed eir -> make_offset_to_label_mapping eir segment
-;;
-
-let make_statement_edges eir pc_to_label =
-  let statements = Hashtbl.create (module String) in
-  let out_edges = Hashtbl.create (module String) in
-  let fallthrough_label = ref None in
-  List.iteri (Eir.insns eir) ~f:(fun pc insn ->
-    let label = Hashtbl.find_exn pc_to_label pc in
-    (match !fallthrough_label with
-     | Some prev_label ->
-       Hashtbl.add_multi out_edges ~key:prev_label ~data:(label, `Fallthrough)
-     | None -> ());
-    Hashtbl.add_exn statements ~key:label ~data:(lift_insn insn);
-    fallthrough_label
-    := match insn with
-       | Jump { target; cond } ->
-         (match target with
-          | Label target_label ->
-            Hashtbl.add_multi out_edges ~key:label ~data:(target_label, `Jump)
-          | Register _ -> ()
-          | Int _ -> failwith "jump int is undefined. replace it with jump label.");
-         Option.map cond ~f:(fun _ -> label)
-       | Exit -> None
-       | _ -> Some label);
-  statements, out_edges
-;;
-
-let make_graph statements out_edges =
+let make_graph (eir : Eir.t) : Ast.Statement.t list Graph.t =
   let graph = Graph.create () in
-  (* create nodes without edges *)
-  Hashtbl.iteri statements ~f:(fun ~key:label ~data:stmt ->
-    Graph.add graph label [ stmt ] |> ignore);
-  (* fill in node references with reverse mapping of out_edges *)
-  Hashtbl.iteri out_edges ~f:(fun ~key:from ~data:to_ ->
-    let from = Graph.find_exn graph from in
-    List.iter to_ ~f:(fun (label, _) ->
-      let to_ = Graph.find_exn graph label in
-      Graph.Node.(set_in to_ (from :: in_ to_))));
-  (* fill in branches *)
-  Map.iteri (Graph.nodes graph) ~f:(fun ~key:label ~data:node ->
-    Graph.Node.set_out
-      node
-      (match Hashtbl.find out_edges label with
-       | None -> None
-       | Some [ (label, `Fallthrough) ] ->
-         let target = Graph.find_exn graph label in
-         Some (Graph.Node.Unconditional target)
-       | Some [ (label, `Jump) ] ->
-         let target = Graph.find_exn graph label in
-         Some (Unconditional target)
-       | Some [ (false_, `Fallthrough); (true_, `Jump) ] ->
-         let true_ = Graph.find_exn graph true_ in
-         let false_ = Graph.find_exn graph false_ in
-         Some (Conditional { true_; false_ })
-       | _ -> assert false));
+  let chunks =
+    let offset_to_label = offset_to_label eir Text |> Map.of_alist_exn (module Int) in
+    let missing_jump_offsets =
+      let num_insns = List.length (Eir.insns eir) in
+      List.filter_mapi (Eir.insns eir) ~f:(fun i insn ->
+        let next = i + 1 in
+        match insn with
+        | Jump { target = Label _; _ } when next < num_insns ->
+          Some (next, [%string "__L%{next#Int}"])
+        | _ -> None)
+      |> Map.of_alist_exn (module Int)
+    in
+    let offset_to_label =
+      Map.merge_skewed offset_to_label missing_jump_offsets ~combine:(fun ~key:_ a _ -> a)
+    in
+    chunk (Eir.insns eir) offset_to_label
+  in
+  List.iter chunks ~f:(fun (label, insns) ->
+    let block = List.map insns ~f:lift_insn in
+    Graph.add graph label block |> ignore);
+  let rec add_edges = function
+    | (cur, insns) :: ((next, _) :: _ as rest) ->
+      let cur = Graph.find_exn graph cur in
+      let next = Graph.find_exn graph next in
+      let out_edge =
+        match List.last insns with
+        | Some Insn.Exit -> None
+        | Some (Jump { target = Label target; cond }) ->
+          let target = Graph.find_exn graph target in
+          (match cond with
+           | Some _ -> Conditional { true_ = target; false_ = next }
+           | None -> Unconditional target)
+          |> Graph.Node.Jump
+          |> Some
+        | _ -> Some (Fallthrough next)
+      in
+      Graph.Node.set_out cur out_edge;
+      Graph.Node.(set_in next (cur :: in_ next));
+      add_edges rest
+    | _ -> ()
+  in
+  add_edges chunks;
   graph
 ;;
 
-let make_data eir offset_to_label =
-  (* remove special heap base label for now. we handle it explicitly *)
-  Hashtbl.filter_inplace offset_to_label ~f:(fun label ->
-    not (String.equal label Eir.const_heap_start_label));
-  let heap_entry = Program.Data.{ label = Eir.const_heap_start_label; type_ = Heap } in
-  if not @@ List.is_empty (Eir.data eir)
-  then (
-    (* add a first data label if there isn't one *)
-    let fresh_label = (fresh_label "__D" eir) () in
-    ignore @@ Hashtbl.add offset_to_label ~key:0 ~data:fresh_label;
-    let sorted_labels_by_offset =
-      sorted_alist offset_to_label ~compare:Int.compare |> List.map ~f:snd
-    in
-    let chunks =
-      List.groupi (Eir.data eir) ~break:(fun i _ _ -> Hashtbl.mem offset_to_label i)
-      |> List.zip_exn sorted_labels_by_offset
-      |> List.map ~f:(fun (label, data) -> Program.Data.{ label; type_ = Chunk data })
-    in
-    heap_entry :: chunks)
-  else [ heap_entry ]
-;;
-
 let f eir =
-  let eir = add_labels_to_every_instruction eir in
-  let eir, pc_to_label = make_offset_to_label_mapping eir Text in
-  let eir, data_to_label = make_offset_to_label_mapping eir Data in
-  let statements, out_edges = make_statement_edges eir pc_to_label in
-  let graph = make_graph statements out_edges in
-  let data = make_data eir data_to_label in
-  { Program.graph; data }
+  let eir = delete_duplicate_labels eir in
+  let data =
+    offset_to_label eir Data
+    |> Map.of_alist_exn (module Int)
+    |> chunk (Eir.data eir)
+    |> Map.of_alist_exn (module String)
+  in
+  make_graph eir, data
 ;;
