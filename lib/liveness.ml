@@ -6,9 +6,9 @@ type t =
   { mutable live_in : VarSet.t
   ; mutable live_out : VarSet.t
   }
+[@@deriving sexp_of, fields]
 
-let killed stmt =
-  match stmt with
+let killed = function
   | Statement.Assign { dst; _ } -> VarSet.singleton dst
   | Getc dst -> VarSet.singleton dst
   | Putc _ | Jump _ | Exit | Nop -> VarSet.empty
@@ -40,15 +40,15 @@ let analyze graph =
       { live_in = VarSet.empty; live_out = VarSet.empty }, stmt)
   in
   let rec update node =
-    let liveness, stmt = Graph.Node.v node in
-    liveness.live_out
+    let t, stmt = Graph.Node.v node in
+    t.live_out
     <- Graph.Node.out_as_list node
        |> List.map ~f:(fun n -> (fst (Graph.Node.v n)).live_in)
        |> VarSet.union_list;
-    let live_in = Set.union liveness.live_out (used stmt) |> Set.diff (killed stmt) in
-    if not (Set.equal liveness.live_in live_in)
+    let live_in = Set.diff (Set.union t.live_out (used stmt)) (killed stmt) in
+    if not (Set.equal t.live_in live_in)
     then (
-      liveness.live_in <- live_in;
+      t.live_in <- live_in;
       Graph.Node.in_ node |> List.iter ~f:update)
   in
   Graph.iter graph ~f:update;
