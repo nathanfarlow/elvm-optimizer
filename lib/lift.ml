@@ -54,9 +54,8 @@ let lift_insn : Insn.t -> Statement.t = function
   | Dump -> Nop
 ;;
 
-(** f is a mapping from label -> new label *)
-let update_labels eir mapping =
-  let f label = Map.find mapping label |> Option.value ~default:label in
+let update_labels eir new_mapping =
+  let f label = Map.find new_mapping label |> Option.value ~default:label in
   let labels = Hashtbl.create (module String) in
   Hashtbl.iteri (Eir.labels eir) ~f:(fun ~key ~data ->
     Hashtbl.set labels ~key:(f key) ~data);
@@ -106,8 +105,8 @@ let offset_to_label eir segment =
 ;;
 
 let delete_duplicate_labels eir =
-  let mappings l =
-    l
+  let new_mappings offset_to_label =
+    offset_to_label
     |> Map.of_alist_multi (module Int)
     |> Map.data
     |> List.concat_map ~f:(fun l ->
@@ -120,15 +119,9 @@ let delete_duplicate_labels eir =
     |> Map.of_alist_exn (module String)
   in
   Map.merge_disjoint_exn
-    (mappings (offset_to_label eir Data))
-    (mappings (offset_to_label eir Text))
+    (new_mappings (offset_to_label eir Data))
+    (new_mappings (offset_to_label eir Text))
   |> update_labels eir
-;;
-
-let chunk l offset_to_label =
-  List.zip_exn
-    (Map.data offset_to_label)
-    (List.groupi l ~break:(fun i _ _ -> Map.mem offset_to_label i))
 ;;
 
 let make_graph eir =
@@ -141,30 +134,28 @@ let make_graph eir =
       in
       Graph.add graph label (lift_insn insn))
   in
-  let rec add_edges l =
-    match l with
+  let rec add_edges = function
     | cur :: rest ->
-      let () =
-        let open Graph.Node in
-        match v cur with
-        | Ast.Statement.Exit -> ()
-        | Jump { target = Label target; cond } ->
-          let target = Graph.find_exn graph target in
-          (match cond with
-           | Some _ ->
-             let false_ = List.hd_exn rest in
-             let out = Jump (Conditional { true_ = target; false_ = List.hd_exn rest }) in
-             set_out cur (Some out);
-             set_in target (cur :: in_ target);
-             set_in false_ (cur :: in_ false_)
-           | None ->
-             set_out cur (Some (Jump (Unconditional target)));
-             set_in target (cur :: in_ target))
-        | _ ->
-          let next = List.hd_exn rest in
-          set_out cur (Some (Jump (Unconditional next)));
-          set_in next (cur :: in_ next)
-      in
+      let open Graph.Node in
+      (match v cur with
+       | Ast.Statement.Exit -> ()
+       | Jump { target = Label target; cond } ->
+         let target = Graph.find_exn graph target in
+         (match cond with
+          | Some _ ->
+            let false_ = List.hd_exn rest in
+            set_out
+              cur
+              (Some (Jump (Conditional { true_ = target; false_ = List.hd_exn rest })));
+            set_in target (cur :: in_ target);
+            set_in false_ (cur :: in_ false_)
+          | None ->
+            set_out cur (Some (Jump (Unconditional target)));
+            set_in target (cur :: in_ target))
+       | _ ->
+         let next = List.hd_exn rest in
+         set_out cur (Some (Jump (Unconditional next)));
+         set_in next (cur :: in_ next));
       add_edges rest
     | _ -> ()
   in
@@ -172,13 +163,15 @@ let make_graph eir =
   graph
 ;;
 
+let make_data eir =
+  let offset_to_label = offset_to_label eir Data |> Map.of_alist_exn (module Int) in
+  List.zip_exn
+    (Map.data offset_to_label)
+    (List.groupi (Eir.data eir) ~break:(fun i _ _ -> Map.mem offset_to_label i))
+  |> Map.of_alist_exn (module String)
+;;
+
 let f eir =
   let eir = delete_duplicate_labels eir in
-  let data =
-    offset_to_label eir Data
-    |> Map.of_alist_exn (module Int)
-    |> chunk (Eir.data eir)
-    |> Map.of_alist_exn (module String)
-  in
-  make_graph eir, data
+  make_graph eir, make_data eir
 ;;
