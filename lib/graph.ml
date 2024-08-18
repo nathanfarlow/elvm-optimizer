@@ -39,10 +39,13 @@ module Node = struct
   let set_in = set_in_
 end
 
-type 'a t = { mutable nodes : 'a Node.t Map.M(String).t }
+type 'a t =
+  { mutable i : int
+  ; mutable nodes : 'a Node.t Map.M(String).t
+  }
 
 let nodes t = t.nodes
-let create () = { nodes = Map.empty (module String) }
+let create () = { i = 0; nodes = Map.empty (module String) }
 
 let add t id v =
   let node = { Node.id; v; in_ = []; out = None } in
@@ -75,4 +78,10 @@ let to_dot t to_string =
       add_line (sprintf "  %s -> %s [label=\"false\"];" id false_.id));
   add_line "}";
   Buffer.contents buf
+;;
+
+let rec fresh_label t =
+  let label = [%string "__L%{t.i#Int}"] in
+  t.i <- t.i + 1;
+  if Map.mem t.nodes label then fresh_label t else label
 ;;

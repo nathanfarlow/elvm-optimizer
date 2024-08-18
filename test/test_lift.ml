@@ -8,9 +8,7 @@ let eir ?(insns = []) ?(data = []) ?(labels = []) () =
 ;;
 
 let print_graph (graph, _) =
-  let to_string stmts =
-    [%sexp (stmts : Ast.Statement.t list)] |> Sexp.to_string_hum ~indent:2
-  in
+  let to_string stmt = [%sexp (stmt : Ast.Statement.t)] |> Sexp.to_string_hum ~indent:2 in
   Graph_util.to_ascii graph to_string >>| print_endline
 ;;
 
@@ -31,108 +29,177 @@ let main = "main", Eir.Address.{ segment = Text; offset = 0 }
 
 let%expect_test "mov is lifted correctly" =
   let%bind () =
-    eir ~insns:[ Mov { dst = A; src = Register A } ] ~labels:[ main ] () |> print_graph
+    eir ~insns:[ Mov { dst = A; src = Register A }; Exit ] ~labels:[ main ] ()
+    |> print_graph
   in
   [%expect
     {|
-    +----------------------------------------------------------+
-    |                                                          |
-    | main:                                                    |
-    |                                                          |
-    | ((Assign ((dst (Register A)) (src (Var (Register A)))))) |
-    +----------------------------------------------------------+
+    +--------------------------------------------------------+
+    |                                                        |
+    | main:                                                  |
+    |                                                        |
+    | (Assign ((dst (Register A)) (src (Var (Register A))))) |
+    +--------------------------------------------------------+
+      |
+      |
+      v
+    +--------------------------------------------------------+
+    |                                                        |
+    | __L1:                                                  |
+    |                                                        |
+    | Exit                                                   |
+    +--------------------------------------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "add is lifted correctly" =
   let%bind () =
-    eir ~insns:[ Add { dst = A; src = Label "label" } ] ~labels:[ main ] () |> print_graph
+    eir ~insns:[ Add { dst = A; src = Label "label" }; Exit ] ~labels:[ main ] ()
+    |> print_graph
   in
   [%expect
     {|
-    +--------------------------------------------------------------------------------+
-    |                                                                                |
-    | main:                                                                          |
-    |                                                                                |
-    | ((Assign ((dst (Register A)) (src (Add ((Var (Register A)) (Label label))))))) |
-    +--------------------------------------------------------------------------------+
+    +------------------------------------------------------------------------------+
+    |                                                                              |
+    | main:                                                                        |
+    |                                                                              |
+    | (Assign ((dst (Register A)) (src (Add ((Var (Register A)) (Label label)))))) |
+    +------------------------------------------------------------------------------+
+      |
+      |
+      v
+    +------------------------------------------------------------------------------+
+    |                                                                              |
+    | __L1:                                                                        |
+    |                                                                              |
+    | Exit                                                                         |
+    +------------------------------------------------------------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "sub is lifted correctly" =
   let%bind () =
-    eir ~insns:[ Sub { dst = A; src = Int 5 } ] ~labels:[ main ] () |> print_graph
+    eir ~insns:[ Sub { dst = A; src = Int 5 }; Exit ] ~labels:[ main ] () |> print_graph
   in
   [%expect
     {|
-    +--------------------------------------------------------------------------+
-    |                                                                          |
-    | main:                                                                    |
-    |                                                                          |
-    | ((Assign ((dst (Register A)) (src (Sub (Var (Register A)) (Const 5)))))) |
-    +--------------------------------------------------------------------------+
+    +------------------------------------------------------------------------+
+    |                                                                        |
+    | main:                                                                  |
+    |                                                                        |
+    | (Assign ((dst (Register A)) (src (Sub (Var (Register A)) (Const 5))))) |
+    +------------------------------------------------------------------------+
+      |
+      |
+      v
+    +------------------------------------------------------------------------+
+    |                                                                        |
+    | __L1:                                                                  |
+    |                                                                        |
+    | Exit                                                                   |
+    +------------------------------------------------------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "load is lifted correctly" =
   let%bind () =
-    eir ~insns:[ Load { dst = A; src = Register B } ] ~labels:[ main ] () |> print_graph
+    eir ~insns:[ Load { dst = A; src = Register B }; Exit ] ~labels:[ main ] ()
+    |> print_graph
   in
   [%expect
     {|
-    +-------------------------------------------------------------------------+
-    |                                                                         |
-    | main:                                                                   |
-    |                                                                         |
-    | ((Assign ((dst (Register A)) (src (Var (Memory (Var (Register B)))))))) |
-    +-------------------------------------------------------------------------+
+    +-----------------------------------------------------------------------+
+    |                                                                       |
+    | main:                                                                 |
+    |                                                                       |
+    | (Assign ((dst (Register A)) (src (Var (Memory (Var (Register B))))))) |
+    +-----------------------------------------------------------------------+
+      |
+      |
+      v
+    +-----------------------------------------------------------------------+
+    |                                                                       |
+    | __L1:                                                                 |
+    |                                                                       |
+    | Exit                                                                  |
+    +-----------------------------------------------------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "store is lifted correctly" =
   let%bind () =
-    eir ~insns:[ Store { dst = Register A; src = B } ] ~labels:[ main ] () |> print_graph
+    eir ~insns:[ Store { dst = Register A; src = B }; Exit ] ~labels:[ main ] ()
+    |> print_graph
   in
   [%expect
     {|
-    +-------------------------------------------------------------------------+
-    |                                                                         |
-    | main:                                                                   |
-    |                                                                         |
-    | ((Assign ((dst (Memory (Var (Register A)))) (src (Var (Register B)))))) |
-    +-------------------------------------------------------------------------+
+    +-----------------------------------------------------------------------+
+    |                                                                       |
+    | main:                                                                 |
+    |                                                                       |
+    | (Assign ((dst (Memory (Var (Register A)))) (src (Var (Register B))))) |
+    +-----------------------------------------------------------------------+
+      |
+      |
+      v
+    +-----------------------------------------------------------------------+
+    |                                                                       |
+    | __L1:                                                                 |
+    |                                                                       |
+    | Exit                                                                  |
+    +-----------------------------------------------------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "putc is lifted correctly" =
-  let%bind () = eir ~insns:[ Putc (Register A) ] ~labels:[ main ] () |> print_graph in
+  let%bind () =
+    eir ~insns:[ Putc (Register A); Exit ] ~labels:[ main ] () |> print_graph
+  in
   [%expect
     {|
-    +-----------------------------+
-    |                             |
-    | main:                       |
-    |                             |
-    | ((Putc (Var (Register A)))) |
-    +-----------------------------+
+    +---------------------------+
+    |                           |
+    | main:                     |
+    |                           |
+    | (Putc (Var (Register A))) |
+    +---------------------------+
+      |
+      |
+      v
+    +---------------------------+
+    |                           |
+    | __L1:                     |
+    |                           |
+    | Exit                      |
+    +---------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "getc is lifted correctly" =
-  let%bind () = eir ~insns:[ Getc A ] ~labels:[ main ] () |> print_graph in
+  let%bind () = eir ~insns:[ Getc A; Exit ] ~labels:[ main ] () |> print_graph in
   [%expect
     {|
-    +-----------------------+
-    |                       |
-    | main:                 |
-    |                       |
-    | ((Getc (Register A))) |
-    +-----------------------+
+    +---------------------+
+    |                     |
+    | main:               |
+    |                     |
+    | (Getc (Register A)) |
+    +---------------------+
+      |
+      |
+      v
+    +---------------------+
+    |                     |
+    | __L1:               |
+    |                     |
+    | Exit                |
+    +---------------------+
     |}];
   return ()
 ;;
@@ -141,29 +208,38 @@ let%expect_test "exit is lifted correctly" =
   let%bind () = eir ~insns:[ Exit ] ~labels:[ main ] () |> print_graph in
   [%expect
     {|
-    +--------+
-    |        |
-    | main:  |
-    |        |
-    | (Exit) |
-    +--------+
+    +-------+
+    |       |
+    | main: |
+    |       |
+    | Exit  |
+    +-------+
     |}];
   return ()
 ;;
 
 let%expect_test "jump is lifted correctly" =
   let%bind () =
-    eir ~insns:[ Jump { target = Register A; cond = None } ] ~labels:[ main ] ()
+    eir ~insns:[ Jump { target = Register A; cond = None }; Exit ] ~labels:[ main ] ()
     |> print_graph
   in
   [%expect
     {|
-    +--------------------------------------------------+
-    |                                                  |
-    | main:                                            |
-    |                                                  |
-    | ((Jump ((target (Var (Register A))) (cond ())))) |
-    +--------------------------------------------------+
+    +------------------------------------------------+
+    |                                                |
+    | main:                                          |
+    |                                                |
+    | (Jump ((target (Var (Register A))) (cond ()))) |
+    +------------------------------------------------+
+      |
+      |
+      v
+    +------------------------------------------------+
+    |                                                |
+    | __L1:                                          |
+    |                                                |
+    | Exit                                           |
+    +------------------------------------------------+
     |}];
   return ()
 ;;
@@ -171,35 +247,53 @@ let%expect_test "jump is lifted correctly" =
 let%expect_test "set is lifted correctly" =
   let%bind () =
     eir
-      ~insns:[ Set { cmp = Eq; args = { dst = B; src = Register A } } ]
+      ~insns:[ Set { cmp = Eq; args = { dst = B; src = Register A } }; Exit ]
       ~labels:[ main ]
       ()
     |> print_graph
   in
   [%expect
     {|
-    +--------------------------------------------------------------------------+
-    |                                                                          |
-    | main:                                                                    |
-    |                                                                          |
-    | ((Assign                                                                 |
-    | ((dst (Register B))                                                      |
-    | (src                                                                     |
-    | (If ((cmp Eq) (left (Var (Register B))) (right (Var (Register A))))))))) |
-    +--------------------------------------------------------------------------+
+    +-------------------------------------------------------------------------+
+    |                                                                         |
+    | main:                                                                   |
+    |                                                                         |
+    | (Assign                                                                 |
+    | ((dst (Register B))                                                     |
+    | (src                                                                    |
+    | (If ((cmp Eq) (left (Var (Register B))) (right (Var (Register A)))))))) |
+    +-------------------------------------------------------------------------+
+      |
+      |
+      v
+    +-------------------------------------------------------------------------+
+    |                                                                         |
+    | __L1:                                                                   |
+    |                                                                         |
+    | Exit                                                                    |
+    +-------------------------------------------------------------------------+
     |}];
   return ()
 ;;
 
 let%expect_test "dump is lifted correctly to nop" =
-  let%bind () = eir ~insns:[ Dump ] ~labels:[ main ] () |> print_graph in
+  let%bind () = eir ~insns:[ Dump; Exit ] ~labels:[ main ] () |> print_graph in
   [%expect
     {|
     +-------+
     |       |
     | main: |
     |       |
-    | (Nop) |
+    | Nop   |
+    +-------+
+      |
+      |
+      v
+    +-------+
+    |       |
+    | __L1: |
+    |       |
+    | Exit  |
     +-------+
     |}];
   return ()
@@ -215,18 +309,33 @@ let%expect_test "Instructions are chunked" =
   in
   [%expect
     {|
-    +---------------------------------------------------------------+
-    |                                                               |
-    | foo:                                                          |
-    |                                                               |
-    | (Exit Exit)                                                   |
-    +---------------------------------------------------------------+
-    +---------------------------------------------------------------+
-    |                                                               |
-    | main:                                                         |
-    |                                                               |
-    | ((Assign ((dst (Register A)) (src (Var (Register A))))) Exit) |
-    +---------------------------------------------------------------+
+    +--------------------------------------------------------+
+    |                                                        |
+    | __L3:                                                  |
+    |                                                        |
+    | Exit                                                   |
+    +--------------------------------------------------------+
+    +--------------------------------------------------------+
+    |                                                        |
+    | main:                                                  |
+    |                                                        |
+    | (Assign ((dst (Register A)) (src (Var (Register A))))) |
+    +--------------------------------------------------------+
+      |
+      |
+      v
+    +--------------------------------------------------------+
+    |                                                        |
+    | __L1:                                                  |
+    |                                                        |
+    | Exit                                                   |
+    +--------------------------------------------------------+
+    +--------------------------------------------------------+
+    |                                                        |
+    | foo:                                                   |
+    |                                                        |
+    | Exit                                                   |
+    +--------------------------------------------------------+
     |}];
   return ()
 ;;
@@ -237,21 +346,21 @@ let%expect_test "unconditional branch has edge to target" =
   let%bind () = eir ~insns ~labels () |> print_graph in
   [%expect
     {|
-    +-------------------------------------------+
-    |                                           |
-    | main:                                     |
-    |                                           |
-    | ((Jump ((target (Label foo)) (cond ())))) |
-    +-------------------------------------------+
+    +-----------------------------------------+
+    |                                         |
+    | main:                                   |
+    |                                         |
+    | (Jump ((target (Label foo)) (cond ()))) |
+    +-----------------------------------------+
       |
       |
       v
-    +-------------------------------------------+
-    |                                           |
-    | foo:                                      |
-    |                                           |
-    | (Exit)                                    |
-    +-------------------------------------------+
+    +-----------------------------------------+
+    |                                         |
+    | foo:                                    |
+    |                                         |
+    | Exit                                    |
+    +-----------------------------------------+
     |}];
   return ()
 ;;
@@ -270,32 +379,32 @@ let%expect_test "conditional branch have edges to targets" =
   let%bind () = eir ~insns ~labels () |> print_graph in
   [%expect
     {|
-    +-----------------------------------------------------------------------------+
-    |                                                                             |
-    | main:                                                                       |
-    |                                                                             |
-    | ((Jump                                                                      |
-    | ((target (Label foo))                                                       |
-    | (cond (((cmp Eq) (left (Var (Register A))) (right (Var (Register B))))))))) | -+
-    +-----------------------------------------------------------------------------+  |
-      |                                                                              |
-      | false                                                                        |
-      v                                                                              |
-    +-----------------------------------------------------------------------------+  |
-    |                                                                             |  |
-    | __L1:                                                                       |  |
-    |                                                                             |  | true
-    | ((Putc (Var (Register A))))                                                 |  |
-    +-----------------------------------------------------------------------------+  |
-      |                                                                              |
-      |                                                                              |
-      v                                                                              |
-    +-----------------------------------------------------------------------------+  |
-    |                                                                             |  |
-    | foo:                                                                        |  |
-    |                                                                             |  |
-    | (Exit)                                                                      | <+
-    +-----------------------------------------------------------------------------+
+    +----------------------------------------------------------------------------+
+    |                                                                            |
+    | main:                                                                      |
+    |                                                                            |
+    | (Jump                                                                      |
+    | ((target (Label foo))                                                      |
+    | (cond (((cmp Eq) (left (Var (Register A))) (right (Var (Register B)))))))) | -+
+    +----------------------------------------------------------------------------+  |
+      |                                                                             |
+      | false                                                                       |
+      v                                                                             |
+    +----------------------------------------------------------------------------+  |
+    |                                                                            |  |
+    | __L1:                                                                      |  |
+    |                                                                            |  | true
+    | (Putc (Var (Register A)))                                                  |  |
+    +----------------------------------------------------------------------------+  |
+      |                                                                             |
+      |                                                                             |
+      v                                                                             |
+    +----------------------------------------------------------------------------+  |
+    |                                                                            |  |
+    | foo:                                                                       |  |
+    |                                                                            |  |
+    | Exit                                                                       | <+
+    +----------------------------------------------------------------------------+
     |}];
   return ()
 ;;
@@ -319,22 +428,30 @@ let%expect_test "data is segmented correctly" =
 
 let%expect_test "program with two top blocks" =
   let labels = [ main; ("a", Eir.Address.{ segment = Text; offset = 1 }) ] in
-  let insns = [ Eir.Instruction.Exit; Mov { dst = A; src = Register B }; Dump ] in
+  let insns = [ Eir.Instruction.Exit; Mov { dst = A; src = Register B }; Exit ] in
   let%bind () = eir ~insns ~labels () |> print_graph in
-  [%expect
-    {|
-    +--------------------------------------------------------------+
-    |                                                              |
-    | a:                                                           |
-    |                                                              |
-    | ((Assign ((dst (Register A)) (src (Var (Register B))))) Nop) |
-    +--------------------------------------------------------------+
-    +--------------------------------------------------------------+
-    |                                                              |
-    | main:                                                        |
-    |                                                              |
-    | (Exit)                                                       |
-    +--------------------------------------------------------------+
+  [%expect {|
+    +--------------------------------------------------------+
+    |                                                        |
+    | a:                                                     |
+    |                                                        |
+    | (Assign ((dst (Register A)) (src (Var (Register B))))) |
+    +--------------------------------------------------------+
+      |
+      |
+      v
+    +--------------------------------------------------------+
+    |                                                        |
+    | __L2:                                                  |
+    |                                                        |
+    | Exit                                                   |
+    +--------------------------------------------------------+
+    +--------------------------------------------------------+
+    |                                                        |
+    | main:                                                  |
+    |                                                        |
+    | Exit                                                   |
+    +--------------------------------------------------------+
     |}];
   return ()
 ;;
@@ -345,12 +462,12 @@ let%expect_test "program with self loop" =
   let%bind () = eir ~insns ~labels () |> print_graph in
   [%expect
     {|
-    +--------------------------------------------+
-    |                                            |
-    | main:                                      |
-    |                                            |
-    | ((Jump ((target (Label main)) (cond ())))) |
-    +--------------------------------------------+
+    +------------------------------------------+
+    |                                          |
+    | main:                                    | ---+
+    |                                          |    |
+    | (Jump ((target (Label main)) (cond ()))) | <--+
+    +------------------------------------------+
     |}];
   return ()
 ;;

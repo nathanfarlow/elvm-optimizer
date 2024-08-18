@@ -131,50 +131,44 @@ let chunk l offset_to_label =
     (List.groupi l ~break:(fun i _ _ -> Map.mem offset_to_label i))
 ;;
 
-let make_graph (eir : Eir.t) : Ast.Statement.t list Graph.t =
+let make_graph eir =
   let graph = Graph.create () in
-  let chunks =
-    let offset_to_label = offset_to_label eir Text |> Map.of_alist_exn (module Int) in
-    let missing_jump_offsets =
-      let num_insns = List.length (Eir.insns eir) in
-      List.filter_mapi (Eir.insns eir) ~f:(fun i insn ->
-        let next = i + 1 in
-        match insn with
-        | Jump { target = Label _; _ } when next < num_insns ->
-          Some (next, [%string "__L%{next#Int}"])
-        | _ -> None)
-      |> Map.of_alist_exn (module Int)
-    in
-    let offset_to_label =
-      Map.merge_skewed offset_to_label missing_jump_offsets ~combine:(fun ~key:_ a _ -> a)
-    in
-    chunk (Eir.insns eir) offset_to_label
+  let offset_to_label = offset_to_label eir Text |> Map.of_alist_exn (module Int) in
+  let nodes =
+    List.mapi (Eir.insns eir) ~f:(fun i insn ->
+      let label =
+        Map.find offset_to_label i |> Option.value ~default:(Graph.fresh_label graph)
+      in
+      Graph.add graph label (lift_insn insn))
   in
-  List.iter chunks ~f:(fun (label, insns) ->
-    let block = List.map insns ~f:lift_insn in
-    Graph.add graph label block |> ignore);
-  let rec add_edges = function
-    | (cur, insns) :: ((next, _) :: _ as rest) ->
-      let cur = Graph.find_exn graph cur in
-      let next = Graph.find_exn graph next in
-      let out_edge =
-        match List.last insns with
-        | Some Insn.Exit -> None
-        | Some (Jump { target = Label target; cond }) ->
+  let rec add_edges l =
+    match l with
+    | cur :: rest ->
+      let () =
+        let open Graph.Node in
+        match v cur with
+        | Ast.Statement.Exit -> ()
+        | Jump { target = Label target; cond } ->
           let target = Graph.find_exn graph target in
           (match cond with
-           | Some _ -> Conditional { true_ = target; false_ = next }
-           | None -> Unconditional target)
-          |> Graph.Node.Jump
-          |> Some
-        | _ -> Some (Fallthrough next)
+           | Some _ ->
+             let false_ = List.hd_exn rest in
+             let out = Jump (Conditional { true_ = target; false_ = List.hd_exn rest }) in
+             set_out cur (Some out);
+             set_in target (cur :: in_ target);
+             set_in false_ (cur :: in_ false_)
+           | None ->
+             set_out cur (Some (Jump (Unconditional target)));
+             set_in target (cur :: in_ target))
+        | _ ->
+          let next = List.hd_exn rest in
+          set_out cur (Some (Jump (Unconditional next)));
+          set_in next (cur :: in_ next)
       in
-      Graph.Node.set_out cur out_edge;
-      Graph.Node.(set_in next (cur :: in_ next));
       add_edges rest
     | _ -> ()
   in
-  add_edges chunks;
+  add_edges nodes;
   graph
 ;;
 

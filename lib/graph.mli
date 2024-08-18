@@ -32,3 +32,4 @@ val remove : 'a t -> 'a Node.t -> unit
 val find : 'a t -> string -> 'a Node.t option
 val find_exn : 'a t -> string -> 'a Node.t
 val to_dot : 'a t -> ('a -> string) -> string
+val fresh_label : 'a t -> string
