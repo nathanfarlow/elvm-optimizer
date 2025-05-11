@@ -1,22 +1,10 @@
 open Core
 
 module Register = struct
-  type t =
-    | A
-    | B
-    | C
-    | D
-    | SP
-    | BP
-  [@@deriving sexp, equal, compare, hash]
+  type t = string [@@deriving sexp, equal, compare, hash]
 
   let maybe_parse = function
-    | "A" -> Some A
-    | "B" -> Some B
-    | "C" -> Some C
-    | "D" -> Some D
-    | "SP" -> Some SP
-    | "BP" -> Some BP
+    | ("A" | "B" | "C" | "D" | "SP" | "BP") as s -> Some s
     | _ -> None
   ;;
 
@@ -26,14 +14,7 @@ module Register = struct
     | None -> failwith @@ s ^ " is not a register"
   ;;
 
-  let to_string = function
-    | A -> "A"
-    | B -> "B"
-    | C -> "C"
-    | D -> "D"
-    | SP -> "SP"
-    | BP -> "BP"
-  ;;
+  let to_string = Fn.id
 end
 
 let maybe_parse_label line =

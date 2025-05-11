@@ -36,3 +36,4 @@ val to_dot : 'a t -> ('a -> string) -> string
 val fresh_label : 'a t -> string
 val map : 'a t -> f:('a -> 'b) -> 'b t
 val iter : 'a t -> f:('a Node.t -> unit) -> unit
+val flatten : 'a list t -> 'a t

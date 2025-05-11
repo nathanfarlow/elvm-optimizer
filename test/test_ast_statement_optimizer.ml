@@ -39,7 +39,7 @@ let%expect_test "optimizes jump condition" =
   optimize
     (Jump
        { target = ugly_exp
-       ; cond = Some { cmp = Eq; left = ugly_exp; right = Var (Register A) }
+       ; cond = Some { cmp = Eq; left = ugly_exp; right = Var (Register "A") }
        });
   [%expect
     {|

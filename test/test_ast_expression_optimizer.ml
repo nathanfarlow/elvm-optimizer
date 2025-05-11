@@ -10,7 +10,7 @@ let%expect_test "const remains same" =
 ;;
 
 let%expect_test "register remains same" =
-  optimize (Var (Register A));
+  optimize (Var (Register "A"));
   [%expect {| (Var (Register A)) |}]
 ;;
 
@@ -45,12 +45,13 @@ let%expect_test "add optimizes singular nested add" =
 ;;
 
 let%expect_test "add removes const 0" =
-  optimize (Add [ Const 0; Var (Register A) ]);
+  optimize (Add [ Const 0; Var (Register "A") ]);
   [%expect {| (Var (Register A)) |}]
 ;;
 
 let%expect_test "add optimizes nested sub" =
-  optimize (Add [ Const 1; Sub (Add [ Var (Register A); Var (Register B) ], Const 1) ]);
+  optimize
+    (Add [ Const 1; Sub (Add [ Var (Register "A"); Var (Register "B") ], Const 1) ]);
   [%expect {| (Add ((Var (Register A)) (Var (Register B)))) |}]
 ;;
 
@@ -65,7 +66,7 @@ let%expect_test "sub evaluates constants" =
 ;;
 
 let%expect_test "sub simplifies to add for constants" =
-  optimize (Sub (Var (Register A), Const 1));
+  optimize (Sub (Var (Register "A"), Const 1));
   [%expect {| (Add ((Const -1) (Var (Register A)))) |}]
 ;;
 

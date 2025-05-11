@@ -50,8 +50,8 @@ let%expect_test "substitute label not match" =
 ;;
 
 let%expect_test "substitute var" =
-  let exp = Var (Register A) in
-  let from = Var (Register A) in
+  let exp = Var (Register "A") in
+  let from = Var (Register "A") in
   let to_ = Const 2 in
   let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
@@ -61,8 +61,8 @@ let%expect_test "substitute var" =
 ;;
 
 let%expect_test "substitute var not match" =
-  let exp = Var (Register A) in
-  let from = Var (Register B) in
+  let exp = Var (Register "A") in
+  let from = Var (Register "B") in
   let to_ = Const 2 in
   let exp, changed = substitute exp ~from ~to_ in
   printf "%b" changed;
@@ -171,7 +171,7 @@ let%expect_test "substitute if entirely" =
 ;;
 
 let%expect_test "contains var in var expression" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = Var var in
   let contains = contains exp var in
   printf "%b" contains;
@@ -179,15 +179,15 @@ let%expect_test "contains var in var expression" =
 ;;
 
 let%expect_test "does not contain var in var expression" =
-  let var = Var.Register A in
-  let exp = Var (Register B) in
+  let var = Var.Register "A" in
+  let exp = Var (Register "B") in
   let contains = contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
 ;;
 
 let%expect_test "contains var in add expression" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = Add [ Const 1; Var var ] in
   let contains = contains exp var in
   printf "%b" contains;
@@ -195,15 +195,15 @@ let%expect_test "contains var in add expression" =
 ;;
 
 let%expect_test "does not contain var in add expression" =
-  let var = Var.Register A in
-  let exp = Add [ Const 1; Var (Register B) ] in
+  let var = Var.Register "A" in
+  let exp = Add [ Const 1; Var (Register "B") ] in
   let contains = contains exp var in
   printf "%b" contains;
   [%expect {| false |}]
 ;;
 
 let%expect_test "contains var in sub lhs" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = Sub (Var var, Const 1) in
   let contains = contains exp var in
   printf "%b" contains;
@@ -211,7 +211,7 @@ let%expect_test "contains var in sub lhs" =
 ;;
 
 let%expect_test "contains var in sub rhs" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = Sub (Const 1, Var var) in
   let contains = contains exp var in
   printf "%b" contains;
@@ -219,7 +219,7 @@ let%expect_test "contains var in sub rhs" =
 ;;
 
 let%expect_test "contains var in sub neither" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = Sub (Const 1, Const 2) in
   let contains = contains exp var in
   printf "%b" contains;
@@ -227,7 +227,7 @@ let%expect_test "contains var in sub neither" =
 ;;
 
 let%expect_test "contains var in if lhs" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = If { cmp = Eq; left = Var var; right = Const 1 } in
   let contains = contains exp var in
   printf "%b" contains;
@@ -235,7 +235,7 @@ let%expect_test "contains var in if lhs" =
 ;;
 
 let%expect_test "contains var in if rhs" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = If { cmp = Eq; left = Const 1; right = Var var } in
   let contains = contains exp var in
   printf "%b" contains;
@@ -243,7 +243,7 @@ let%expect_test "contains var in if rhs" =
 ;;
 
 let%expect_test "contains var in if neither" =
-  let var = Var.Register A in
+  let var = Var.Register "A" in
   let exp = If { cmp = Eq; left = Const 1; right = Const 2 } in
   let contains = contains exp var in
   printf "%b" contains;

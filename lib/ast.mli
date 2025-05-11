@@ -66,7 +66,7 @@ module Statement : sig
   type t =
     | Assign of Assignment.t
     | Putc of Expression.t
-    | Getc of Variable.t
+    | Getc of Variable.t (* TODO: Make getc a part of an expression? *)
     | Jump of Jump.t
     | Exit
     | Nop

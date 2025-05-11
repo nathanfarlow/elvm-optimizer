@@ -86,14 +86,14 @@ let rec fresh_label t =
   if Map.mem t.nodes label then fresh_label t else label
 ;;
 
-let map t ~f =
+let mapi t ~f =
   (* TODO: we should change this representation *)
   let t' = create () in
   let rec insert node =
     if Map.mem t'.nodes node.Node.id
     then ()
     else (
-      let node' = add t' node.Node.id (f node.Node.v) in
+      let node' = add t' node.Node.id (f node.Node.id node.Node.v) in
       List.iter node.Node.in_ ~f:(fun parent -> insert parent);
       Node.set_in
         node'
@@ -124,4 +124,58 @@ let map t ~f =
   t'
 ;;
 
+let map t ~f = mapi t ~f:(fun _ v -> f v)
 let iter t ~f = Map.iteri t.nodes ~f:(fun ~key:_ ~data:node -> f node)
+
+let fallthrough t init_id (insns : 'a list) =
+  (* TODO: switch to a nonempty list *)
+  assert (not (List.is_empty insns));
+  let hd, tl = List.hd_exn insns, List.drop insns 1 in
+  let nodes =
+    add t init_id hd
+    :: List.map tl ~f:(fun insn ->
+      let label = fresh_label t in
+      add t label insn)
+  in
+  let rec add_edges = function
+    | [] | [ _ ] -> ()
+    | a :: b :: rest ->
+      Node.set_in b [ a ];
+      Node.set_out a (Some (Fallthrough b));
+      add_edges (b :: rest)
+  in
+  add_edges nodes;
+  List.last_exn nodes
+;;
+
+let flatten (t : 'a list t) : 'a t =
+  (* TODO: this is bad, jank code. Can we unify with [map]?*)
+  let new_graph = create () in
+  let last_nodes = mapi t ~f:(fun id node -> fallthrough new_graph id node) in
+  iter t ~f:(fun node ->
+    let id = Node.id node in
+    let parents = Node.in_ node in
+    let corresponding_node = Map.find_exn new_graph.nodes id in
+    Node.set_in
+      corresponding_node
+      (List.map parents ~f:(fun parent -> Map.find_exn new_graph.nodes parent.Node.id));
+    let out = Node.out node in
+    let corresponding_node = find_exn last_nodes id |> Node.v in
+    let out =
+      match out with
+      | None -> None
+      | Some (Fallthrough child) ->
+        Some (Node.Fallthrough (Map.find_exn new_graph.nodes child.Node.id))
+      | Some (Jump (Unconditional child)) ->
+        Some (Jump (Unconditional (Map.find_exn new_graph.nodes child.Node.id)))
+      | Some (Jump (Conditional { true_; false_ })) ->
+        Some
+          (Jump
+             (Conditional
+                { true_ = Map.find_exn new_graph.nodes true_.Node.id
+                ; false_ = Map.find_exn new_graph.nodes false_.Node.id
+                }))
+    in
+    Node.set_out corresponding_node out);
+  new_graph
+;;
